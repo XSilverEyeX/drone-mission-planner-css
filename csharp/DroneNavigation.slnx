@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="DroneNavigation.Demo/DroneNavigation.Demo.csproj" />
+  <Project Path="DroneNavigation.Fly/DroneNavigation.Fly.csproj" />
+  <Project Path="DroneNavigation.Tests/DroneNavigation.Tests.csproj" />
+  <Project Path="DroneNavigation.Web/DroneNavigation.Web.csproj" />
+  <Project Path="DroneNavigation/DroneNavigation.csproj" />
+</Solution>

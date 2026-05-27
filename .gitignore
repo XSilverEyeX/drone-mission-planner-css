@@ -1,0 +1,59 @@
+# ============================================================
+# .gitignore for drone_mission_planner
+# ============================================================
+
+# ----- .NET build artifacts -----
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ----- Python -----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+*.egg-info/
+
+# ----- IDE -----
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ----- macOS -----
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ----- Windows -----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ----- ArduPilot (giant external dependency, NOT our code) -----
+ardupilot/
+
+# ----- ArduPilot SITL runtime outputs -----
+*.tlog
+*.tlog.raw
+*.parm
+*.param
+logs/
+terrain/
+eeprom.bin
+mav.parm
+
+# ----- Generated demo artifacts (SVGs are reproducible) -----
+csharp/*.svg
+csharp/path_*.svg
+
+# ----- Secrets (just in case) -----
+.env
+*.key
+*.pem
