@@ -4,12 +4,6 @@ venator_demo.py
 
 Standalone terminal demo for testing communication between:
 Computer -> SiK Radio -> SiK Radio -> Pixhawk
-
-This program does NOT require:
-- ASP.NET
-- C#
-- localhost website
-- Drone Mission Planner
 """
 
 from mavlink_connection import MAVLinkConnection
