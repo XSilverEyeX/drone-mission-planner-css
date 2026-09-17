@@ -32,25 +32,95 @@ import socket
 import sys
 import time
 from pymavlink import mavutil
+from serial.tools import list_ports
 
 # Configuration
-SITL_CONNECTION = 'udpin:127.0.0.1:14551'
-BRIDGE_HOST = '127.0.0.1'
+# ---------- Connection configuration ----------
+
+# "sitl"  = ArduPilot simulator
+# "radio" = Real Pixhawk through a SiK telemetry radio
+CONNECTION_MODE = "radio"
+
+# Simulator connection
+SITL_CONNECTION = "udpin:127.0.0.1:14551"
+
+# Real SiK telemetry radio settings.
+# We will change SERIAL_PORT tomorrow after Windows detects the radio.
+SERIAL_PORT = None
+SERIAL_BAUD = 57600
+
+# C# <-> Python bridge settings
+BRIDGE_HOST = "127.0.0.1"
 BRIDGE_PORT = 5555
+
+# Don't wait forever if no Pixhawk/SITL heartbeat is received.
+HEARTBEAT_TIMEOUT = 10
 
 # Earth's radius in meters — used by local-to-GPS conversion.
 EARTH_RADIUS_M = 6_378_137.0
+
+def get_serial_ports():
+    """
+    Returns all serial/COM ports currently detected by Windows.
+
+    Tomorrow, when the SiK telemetry radio is plugged into USB,
+    it should appear in this list as a COM port.
+    """
+    ports = []
+
+    for port in list_ports.comports():
+        ports.append({
+            "device": port.device,
+            "description": port.description
+        })
+
+    return ports
 
 
 class DroneBridge:
     """Wraps a pymavlink connection with high-level command methods."""
 
-    def __init__(self, connection_string):
-        print(f"[bridge] Connecting to SITL at {connection_string}...")
-        self.master = mavutil.mavlink_connection(connection_string)
-        self.master.wait_heartbeat()
-        print(f"[bridge] Connected. System: {self.master.target_system}, "
-              f"Component: {self.master.target_component}")
+    def __init__(self, connection_string, baud=None):
+        """
+        Open a MAVLink connection and wait for the flight controller heartbeat.
+
+        connection_string can be either:
+        - SITL UDP connection, such as udpin:127.0.0.1:14551
+        - Windows serial port, such as COM5
+        """
+
+        print(f"[bridge] Opening MAVLink connection: {connection_string}")
+
+        # Serial connections need a baud rate.
+        # UDP/SITL connections do not.
+        if baud is not None:
+            self.master = mavutil.mavlink_connection(
+                connection_string,
+                baud=baud
+            )
+        else:
+            self.master = mavutil.mavlink_connection(connection_string)
+
+        print(
+            f"[bridge] Waiting up to {HEARTBEAT_TIMEOUT} seconds "
+            "for MAVLink heartbeat..."
+        )
+
+        heartbeat = self.master.wait_heartbeat(
+            timeout=HEARTBEAT_TIMEOUT
+        )
+
+        if heartbeat is None:
+            raise TimeoutError(
+                f"No MAVLink heartbeat received from {connection_string}"
+            )
+
+        print(
+            f"[bridge] MAVLink heartbeat received! "
+            f"System: {self.master.target_system}, "
+            f"Component: {self.master.target_component}"
+        )
+
         self.home_lat = None
         self.home_lon = None
 
@@ -208,6 +278,20 @@ def handle_command(bridge, command):
     """Dispatch a single JSON command to the appropriate bridge method."""
     cmd = command.get("cmd")
     try:
+        if cmd == "get_ports":
+            return {
+                "status": "ok",
+                "message": "Serial ports detected",
+                "data": {
+                    "ports": get_serial_ports()
+                }
+            }
+                # All commands below this point require an active MAVLink connection.
+        if bridge is None:
+            return {
+                "status": "error",
+                "message": "No Pixhawk connected"
+            }
         if cmd == "arm":
             return bridge.arm()
         if cmd == "takeoff":
@@ -270,12 +354,55 @@ def serve(bridge):
 
 
 def main():
-    bridge = DroneBridge(SITL_CONNECTION)
     try:
+        # ---------- Simulator mode ----------
+        if CONNECTION_MODE.lower() == "sitl":
+            print("[bridge] Mode: SITL")
+
+            try:
+                bridge = DroneBridge(SITL_CONNECTION)
+            except TimeoutError as e:
+                print(f"[bridge] SITL not connected: {e}")
+                bridge = None
+
+        # ---------- Real radio mode ----------
+        elif CONNECTION_MODE.lower() == "radio":
+            print("[bridge] Mode: SiK telemetry radio")
+
+            # Start with no Pixhawk connection.
+            # The GUI will eventually choose the COM port and request a connection.
+            bridge = None
+
+            print("[bridge] Waiting for telemetry connection request.")
+            print("[bridge] Available COM ports:")
+
+            ports = get_serial_ports()
+
+            if not ports:
+                print("  No COM ports detected.")
+            else:
+                for port in ports:
+                    print(
+                        f"  {port['device']} - "
+                        f"{port['description']}"
+                    )
+
+        else:
+            print(
+                f"[bridge] ERROR: Unknown connection mode: "
+                f"{CONNECTION_MODE}"
+            )
+            return
+
+        # IMPORTANT:
+        # Start the C# <-> Python server even if no Pixhawk is connected.
         serve(bridge)
+
     except KeyboardInterrupt:
         print("\n[bridge] Shutting down")
-        sys.exit(0)
+
+    except Exception as e:
+        print(f"[bridge] ERROR: {e}")
 
 
 if __name__ == "__main__":

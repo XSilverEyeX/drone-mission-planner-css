@@ -34,6 +34,10 @@ public class DroneClient : IDisposable
     private StreamReader? _reader;
     private StreamWriter? _writer;
 
+    // Prevent multiple API requests from using the TCP stream at the same time.
+    // This keeps each command paired with the correct Python response.
+    private readonly object _sendLock = new();
+
     public DroneClient(string host = DefaultHost, int port = DefaultPort)
     {
         _host = host;
@@ -76,26 +80,51 @@ public class DroneClient : IDisposable
 
     public DroneResponse GetPosition() => Send(new { cmd = "get_position" });
 
+    // Requests the list of serial/COM ports detected by the Python bridge.
+    // Used by the GUI to populate the telemetry COM-port dropdown.
+    public DroneResponse GetPorts() => Send(new { cmd = "get_ports" });
+
     // Sends an arbitrary command object as JSON, reads one line of response,
-    // parses it back into a DroneResponse.
+    // and parses it back into a DroneResponse.
     private DroneResponse Send(object command)
     {
-        if (_writer == null || _reader == null)
-            throw new InvalidOperationException("Not connected. Call Connect() first.");
-
-        string json = JsonSerializer.Serialize(command);
-        _writer.WriteLine(json);
-
-        string? line = _reader.ReadLine();
-        if (line == null)
-            throw new IOException("Bridge closed the connection without responding.");
-
-        DroneResponse? response = JsonSerializer.Deserialize<DroneResponse>(line);
-        return response ?? new DroneResponse
+        // Only allow one command at a time to use the TCP connection.
+        // This prevents /api/status and other API calls from mixing responses.
+        lock (_sendLock)
         {
-            Status = "error",
-            Message = "Could not parse bridge response"
-        };
+            if (_writer == null || _reader == null)
+            {
+                throw new InvalidOperationException(
+                    "Not connected. Call Connect() first."
+                );
+            }
+
+            // Convert the C# command into JSON.
+            string json = JsonSerializer.Serialize(command);
+
+            // Send one command to the Python bridge.
+            _writer.WriteLine(json);
+
+            // Read the response belonging to this command.
+            string? line = _reader.ReadLine();
+
+            if (line == null)
+            {
+                throw new IOException(
+                    "Bridge closed the connection without responding."
+                );
+            }
+
+            // Convert the Python response back into a DroneResponse.
+            DroneResponse? response =
+                JsonSerializer.Deserialize<DroneResponse>(line);
+
+            return response ?? new DroneResponse
+            {
+                Status = "error",
+                Message = "Could not parse bridge response"
+            };
+        }
     }
 
     public void Dispose()

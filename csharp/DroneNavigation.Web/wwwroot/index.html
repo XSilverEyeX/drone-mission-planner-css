@@ -139,10 +139,39 @@
     height: 100vh;
   }
 
-  .leaflet-container {
-    background: #0e1219;
-  }
+.leaflet-container {
+  background: #0e1219;
+}
 
+
+/* ---------- Telemetry controls ---------- */
+
+#telemetry-port {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 6px;
+  background: #0e1219;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.telemetry-status {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.telemetry-status div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.telemetry-status span:first-child {
+  color: var(--muted);
+}
 
   /* ---------- Tablet layout ---------- */
   /* Activates when the screen is 1000px wide or smaller */
@@ -253,6 +282,35 @@
       <h2>Flight</h2>
       <label>Cruise altitude: <span class="value" id="altitude-value">20</span> m</label>
       <input type="range" id="altitude" min="5" max="50" value="20" step="1">
+    </div>
+    <!-- ---------- Telemetry ---------- -->
+    <div class="section">
+      <h2>Telemetry</h2>
+
+      <label for="telemetry-port">COM Port</label>
+      <select id="telemetry-port">
+        <option value="">Loading ports...</option>
+      </select>
+
+      <button id="btn-refresh-ports" class="secondary">
+        Refresh ports
+      </button>
+
+      <button id="btn-connect-telemetry" disabled>
+        Connect
+      </button>
+
+      <div class="telemetry-status">
+        <div>
+          <span>Radio</span>
+          <span id="radio-status">🔴 Disconnected</span>
+        </div>
+
+        <div>
+          <span>Pixhawk</span>
+          <span id="pixhawk-status">🔴 No heartbeat</span>
+        </div>
+      </div>
     </div>
 
     <div class="section">
@@ -473,6 +531,48 @@
     };
 
     // ---------- API calls ----------
+
+    // ---------- Telemetry COM-port discovery ----------
+    async function loadTelemetryPorts() {
+      const select = document.getElementById("telemetry-port");
+      const connectButton = document.getElementById("btn-connect-telemetry");
+
+      select.innerHTML = '<option value="">Loading ports...</option>';
+      connectButton.disabled = true;
+
+      try {
+        const res = await fetch(API_BASE + "/api/telemetry/ports");
+        const data = await res.json();
+
+        select.innerHTML = "";
+
+        if (!data.success || !data.ports || data.ports.length === 0) {
+          select.innerHTML = '<option value="">No COM ports found</option>';
+          log("No telemetry COM ports detected");
+          return;
+        }
+
+        data.ports.forEach(port => {
+          const option = document.createElement("option");
+
+          option.value = port.device;
+          option.textContent = `${port.device} - ${port.description}`;
+
+          select.appendChild(option);
+        });
+
+        connectButton.disabled = false;
+        log(`Detected ${data.ports.length} COM port(s)`);
+
+      } catch (e) {
+        select.innerHTML = '<option value="">Bridge unavailable</option>';
+        connectButton.disabled = true;
+        log(`✗ Could not load COM ports: ${e}`);
+      }
+    }
+
+    document.getElementById("btn-refresh-ports").onclick = loadTelemetryPorts;
+
     async function planPath() {
       const altitude = parseFloat(document.getElementById("altitude").value);
       const body = { obstacles, start, goal, altitudeMeters: altitude };
@@ -612,6 +712,10 @@
     pollDronePosition();
 
     // ---------- Initial draw ----------
+
+    // Load available COM ports when the GCS first opens.
+    loadTelemetryPorts();
+
     redraw();
     log("Ready. Click on the map (inside the dashed boundary) to place obstacles.");
   </script>
