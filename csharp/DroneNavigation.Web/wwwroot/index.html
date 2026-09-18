@@ -1,306 +1,398 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Drone Mission Planner</title>
+
+  <!-- Leaflet is used to display the interactive map -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<style>
-  :root {
-    --bg: #1a1d24;
-    --panel: #22262e;
-    --border: #2f343d;
-    --text: #e8eaed;
-    --muted: #9aa0a6;
-    --accent: #4dd0a0;
-    --danger: #e57373;
-    --warn: #f6c452;
-  }
 
-  * {
-    box-sizing: border-box;
-  }
+  <style>
 
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    display: grid;
+    /* ---------- Main colors ---------- */
 
-    /* Responsive sidebar:
-       Minimum width = 250px
-       Preferred width = 20% of screen
-       Maximum width = 320px */
-    grid-template-columns: clamp(250px, 20vw, 320px) 1fr;
-
-    height: 100vh;
-  }
-
-  .sidebar {
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    padding: 16px;
-    overflow-y: auto;
-  }
-
-  .sidebar h1 {
-    font-size: 18px;
-    margin: 0 0 16px;
-    color: var(--accent);
-  }
-
-  .section {
-    border-top: 1px solid var(--border);
-    padding-top: 12px;
-    margin-top: 12px;
-  }
-
-  .section h2 {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--muted);
-    margin: 0 0 8px;
-  }
-
-  button {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 6px;
-    background: var(--accent);
-    color: #0e1219;
-    border: none;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 14px;
-  }
-
-  button:hover {
-    filter: brightness(1.1);
-  }
-
-  button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  button.secondary {
-    background: var(--border);
-    color: var(--text);
-  }
-
-  button.danger {
-    background: var(--danger);
-    color: #fff;
-  }
-
-  button.tool {
-    background: var(--border);
-    color: var(--text);
-  }
-
-  button.tool.active {
-    background: var(--warn);
-    color: #0e1219;
-  }
-
-  label {
-    display: block;
-    font-size: 13px;
-    color: var(--muted);
-    margin: 8px 0 4px;
-  }
-
-  input[type="range"] {
-    width: 100%;
-  }
-
-  .value {
-    color: var(--text);
-    font-variant-numeric: tabular-nums;
-  }
-
-  #log {
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    font-size: 11px;
-    color: var(--muted);
-    background: #0e1219;
-    border-radius: 4px;
-    padding: 8px;
-    height: 140px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-  }
-
-  #map {
-    width: 100%;
-    height: 100vh;
-  }
-
-.leaflet-container {
-  background: #0e1219;
-}
-
-
-/* ---------- Telemetry controls ---------- */
-
-#telemetry-port {
-  width: 100%;
-  padding: 8px;
-  margin-bottom: 6px;
-  background: #0e1219;
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
-}
-
-.telemetry-status {
-  margin-top: 6px;
-  font-size: 12px;
-}
-
-.telemetry-status div {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 5px;
-}
-
-.telemetry-status span:first-child {
-  color: var(--muted);
-}
-
-  /* ---------- Tablet layout ---------- */
-  /* Activates when the screen is 1000px wide or smaller */
-
-  @media (max-width: 1000px) {
-
-    body {
-      /* Narrower control panel gives the map more room */
-      grid-template-columns: 220px 1fr;
+    :root {
+      --bg: #1a1d24;
+      --panel: #22262e;
+      --border: #2f343d;
+      --text: #e8eaed;
+      --muted: #9aa0a6;
+      --accent: #4dd0a0;
+      --danger: #e57373;
+      --warn: #f6c452;
     }
 
+    * {
+      box-sizing: border-box;
+    }
+
+    /* Main page layout */
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: grid;
+
+      /* Keeps the sidebar from getting too small or too large */
+      grid-template-columns: clamp(250px, 20vw, 320px) 1fr;
+
+      height: 100vh;
+    }
+
+    /* ---------- Sidebar ---------- */
+
     .sidebar {
-      padding: 12px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      overflow-y: auto;
     }
 
     .sidebar h1 {
-      font-size: 16px;
-      margin-bottom: 12px;
+      font-size: 18px;
+      margin: 0 0 16px;
+      color: var(--accent);
     }
 
+    /* Each group of controls in the sidebar */
     .section {
-      padding-top: 10px;
-      margin-top: 10px;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      margin-top: 12px;
     }
+
+    .section h2 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+
+    /* ---------- Buttons ---------- */
 
     button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 6px;
+      background: var(--accent);
+      color: #0e1219;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      filter: brightness(1.1);
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    button.danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    button.tool {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    /* Shows which map tool is currently selected */
+    button.tool.active {
+      background: var(--warn);
+      color: #0e1219;
+    }
+
+    /* ---------- Labels and sliders ---------- */
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin: 8px 0 4px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .value {
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------- Log window ---------- */
+
+    #log {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      color: var(--muted);
+      background: #0e1219;
+      border-radius: 4px;
       padding: 8px;
+      height: 140px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    /* ---------- Map ---------- */
+
+    #map {
+      width: 100%;
+      height: 100vh;
+    }
+
+    .leaflet-container {
+      background: #0e1219;
+    }
+
+    /* ---------- Telemetry controls ---------- */
+
+    #telemetry-port {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 6px;
+      background: #0e1219;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
       font-size: 13px;
     }
 
-    #log {
-      height: 110px;
+    .telemetry-status {
+      margin-top: 6px;
+      font-size: 12px;
     }
-  }
-/* ---------- Mobile layout ---------- */
-/* Activates when the screen is 600px wide or smaller */
-@media (max-width: 600px) {
 
-  body {
-    /* Switch to one vertical column */
-    grid-template-columns: 1fr;
-    grid-template-rows: 70vh auto;
-    height: auto;
-    min-height: 100vh;
-  }
+    .telemetry-status div {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 5px;
+    }
 
-  #map {
-    /* Map becomes the first thing shown */
-    grid-row: 1;
-    width: 100%;
-    height: 70vh;
-    min-height: 400px;
-  }
+    .telemetry-status span:first-child {
+      color: var(--muted);
+    }
 
-  .sidebar {
-    /* Controls appear underneath the map */
-    grid-row: 2;
-    width: 100%;
-    padding: 10px;
+    /* ---------- Tablet layout ---------- */
+    /* Makes the sidebar smaller on medium-sized screens */
 
-    border-right: none;
-    border-top: 1px solid var(--border);
-  }
+    @media (max-width: 1000px) {
 
-  .sidebar h1 {
-    font-size: 16px;
-    margin-bottom: 10px;
-  }
+      body {
+        grid-template-columns: 220px 1fr;
+      }
 
-  .section {
-    padding-top: 8px;
-    margin-top: 8px;
-  }
+      .sidebar {
+        padding: 12px;
+      }
 
-  button {
-    /* Keep controls large enough for touch */
-    padding: 10px;
-    font-size: 14px;
-  }
+      .sidebar h1 {
+        font-size: 16px;
+        margin-bottom: 12px;
+      }
 
-  #log {
-    height: 100px;
-  }
-}
-</style>
+      .section {
+        padding-top: 10px;
+        margin-top: 10px;
+      }
+
+      button {
+        padding: 8px;
+        font-size: 13px;
+      }
+
+      #log {
+        height: 110px;
+      }
+    }
+
+    /* ---------- Mobile layout ---------- */
+    /* Puts the map above the controls on smaller screens */
+
+    @media (max-width: 600px) {
+
+      body {
+        grid-template-columns: 1fr;
+        grid-template-rows: 70vh auto;
+        height: auto;
+        min-height: 100vh;
+      }
+
+      #map {
+        grid-row: 1;
+        width: 100%;
+        height: 70vh;
+        min-height: 400px;
+      }
+
+      .sidebar {
+        grid-row: 2;
+        width: 100%;
+        padding: 10px;
+        border-right: none;
+        border-top: 1px solid var(--border);
+      }
+
+      .sidebar h1 {
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+
+      .section {
+        padding-top: 8px;
+        margin-top: 8px;
+      }
+
+      button {
+        /* Keeps buttons large enough to use on a touchscreen */
+        padding: 10px;
+        font-size: 14px;
+      }
+
+      #log {
+        height: 100px;
+      }
+    }
+
+  </style>
 </head>
+
+
 <body>
+
+  <!-- =====================================================
+       SIDEBAR
+       Contains the controls used to set up and fly a mission
+       ===================================================== -->
+
   <aside class="sidebar">
+
     <h1>🚁 Drone Mission Planner</h1>
+
+
+    <!-- ---------- Map tools ---------- -->
 
     <div class="section">
       <h2>Tool</h2>
-      <button class="tool active" id="tool-obstacle">Place obstacle</button>
-      <button class="tool" id="tool-start">Set start</button>
-      <button class="tool" id="tool-goal">Set goal</button>
-      <button class="tool" id="tool-area">Move planning area</button>
+
+      <button class="tool active" id="tool-obstacle">
+        Place obstacle
+      </button>
+
+      <button class="tool" id="tool-start">
+        Set start
+      </button>
+
+      <button class="tool" id="tool-goal">
+        Set goal
+      </button>
+
+      <button class="tool" id="tool-area">
+        Move planning area
+      </button>
     </div>
+
+
+    <!-- ---------- Obstacle settings ---------- -->
 
     <div class="section">
       <h2>Obstacle properties</h2>
-      <label>Radius: <span class="value" id="radius-value">8</span> m</label>
-      <input type="range" id="radius" min="3" max="20" value="8" step="1">
-      <label>Height: <span class="value" id="height-value">30</span> m</label>
-      <input type="range" id="height" min="0" max="50" value="30" step="1">
+
+      <label>
+        Radius:
+        <span class="value" id="radius-value">8</span> m
+      </label>
+
+      <input
+        type="range"
+        id="radius"
+        min="3"
+        max="20"
+        value="8"
+        step="1"
+      >
+
+      <label>
+        Height:
+        <span class="value" id="height-value">30</span> m
+      </label>
+
+      <input
+        type="range"
+        id="height"
+        min="0"
+        max="50"
+        value="30"
+        step="1"
+      >
     </div>
+
+
+    <!-- ---------- Flight settings ---------- -->
 
     <div class="section">
       <h2>Flight</h2>
-      <label>Cruise altitude: <span class="value" id="altitude-value">20</span> m</label>
-      <input type="range" id="altitude" min="5" max="50" value="20" step="1">
+
+      <label>
+        Cruise altitude:
+        <span class="value" id="altitude-value">20</span> m
+      </label>
+
+      <input
+        type="range"
+        id="altitude"
+        min="5"
+        max="50"
+        value="20"
+        step="1"
+      >
     </div>
+
+
     <!-- ---------- Telemetry ---------- -->
+    <!-- Lets the user select the COM port for the SiK radio -->
+
     <div class="section">
+
       <h2>Telemetry</h2>
 
-      <label for="telemetry-port">COM Port</label>
+      <label for="telemetry-port">
+        COM Port
+      </label>
+
       <select id="telemetry-port">
         <option value="">Loading ports...</option>
       </select>
 
+      <!-- Checks Windows again for available COM ports -->
       <button id="btn-refresh-ports" class="secondary">
         Refresh ports
       </button>
 
+      <!-- Will eventually connect the selected radio to the bridge -->
       <button id="btn-connect-telemetry" disabled>
         Connect
       </button>
 
+      <!-- Shows radio and Pixhawk communication status -->
       <div class="telemetry-status">
+
         <div>
           <span>Radio</span>
           <span id="radio-status">🔴 Disconnected</span>
@@ -310,414 +402,1272 @@
           <span>Pixhawk</span>
           <span id="pixhawk-status">🔴 No heartbeat</span>
         </div>
+
       </div>
+
     </div>
 
+
+    <!-- ---------- Mission buttons ---------- -->
+
     <div class="section">
+
       <h2>Actions</h2>
-      <button id="btn-plan">Plan path</button>
-      <button id="btn-fly" disabled>Fly mission</button>
-      <button class="danger" id="btn-abort">Abort (land now)</button>
-      <button class="secondary" id="btn-clear">Clear all obstacles</button>
+
+      <button id="btn-plan">
+        Plan path
+      </button>
+
+      <button id="btn-fly" disabled>
+        Fly mission
+      </button>
+
+      <button class="danger" id="btn-abort">
+        Abort (land now)
+      </button>
+
+      <button class="secondary" id="btn-clear">
+        Clear all obstacles
+      </button>
+
     </div>
 
+
+    <!-- ---------- Message log ---------- -->
+
     <div class="section">
+
       <h2>Log</h2>
+
       <div id="log"></div>
+
     </div>
+
   </aside>
 
+
+  <!-- Leaflet places the interactive map inside this element -->
   <main id="map"></main>
 
+
+  <!-- Leaflet JavaScript library -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+
   <script>
-    // ---------- World configuration ----------
-    // Local frame: 100m x 100m square. The world coordinate (0,0) maps to the
-    // southwest corner of the planning boundary. The boundary itself can move
-    // independently of where SITL is actually flying.
+
+    // ============================================================
+    // MAP SETTINGS
+    // ============================================================
+
+    // Reference GPS position used for the local map
     const HOME_LAT = -35.363262;
     const HOME_LON = 149.165237;
-    const WORLD_SIZE = 100;
-    const EARTH_RADIUS_M = 6378137;
-    const API_BASE = "";  // same origin
 
-    // Boundary origin in world meters from HOME. When the user moves the boundary,
-    // these change. The "world" coordinate system (where obstacles, start, goal
-    // live) stays a 100x100 grid; the boundary origin maps grid (0,0) to a
-    // specific GPS point.
+    // Planning area is 100 meters by 100 meters
+    const WORLD_SIZE = 100;
+
+    // Radius of Earth used for GPS conversions
+    const EARTH_RADIUS_M = 6378137;
+
+    // API is running from the same server as the website
+    const API_BASE = "";
+
+
+    // These values move the planning boundary around the map
     let boundaryOriginX = 0;
     let boundaryOriginY = 0;
 
-    // ---------- Coordinate conversions ----------
-    // World (meters in the planning grid, with (0,0) at SW corner of boundary)
-    // to GPS (lat/lon). The boundary origin can shift, so we add it in.
+
+    // ============================================================
+    // COORDINATE CONVERSIONS
+    // ============================================================
+
+    // Converts local x/y coordinates in meters into GPS coordinates
     function worldToLatLon(x, y) {
+
       const effectiveX = x + boundaryOriginX;
       const effectiveY = y + boundaryOriginY;
-      const lat = HOME_LAT + (effectiveY / EARTH_RADIUS_M) * (180 / Math.PI);
-      const lon = HOME_LON + (effectiveX / EARTH_RADIUS_M) * (180 / Math.PI) / Math.cos(HOME_LAT * Math.PI / 180);
+
+      const lat =
+        HOME_LAT +
+        (effectiveY / EARTH_RADIUS_M) *
+        (180 / Math.PI);
+
+      const lon =
+        HOME_LON +
+        (effectiveX / EARTH_RADIUS_M) *
+        (180 / Math.PI) /
+        Math.cos(HOME_LAT * Math.PI / 180);
+
       return [lat, lon];
     }
+
+
+    // Converts GPS coordinates back into local x/y coordinates
     function latLonToWorld(lat, lon) {
-      const y = (lat - HOME_LAT) * (Math.PI / 180) * EARTH_RADIUS_M;
-      const x = (lon - HOME_LON) * (Math.PI / 180) * EARTH_RADIUS_M * Math.cos(HOME_LAT * Math.PI / 180);
-      return { x: x - boundaryOriginX, y: y - boundaryOriginY };
+
+      const y =
+        (lat - HOME_LAT) *
+        (Math.PI / 180) *
+        EARTH_RADIUS_M;
+
+      const x =
+        (lon - HOME_LON) *
+        (Math.PI / 180) *
+        EARTH_RADIUS_M *
+        Math.cos(HOME_LAT * Math.PI / 180);
+
+      return {
+        x: x - boundaryOriginX,
+        y: y - boundaryOriginY
+      };
     }
 
-    // Convert "local meters from real GPS home" directly to lat/lon (no boundary
-    // offset). Used for drawing the live drone icon — which is at its actual GPS
-    // position, independent of whatever boundary the user has set up.
+
+    // Converts local drone position into GPS coordinates
+    // This does not use the movable planning-area offset
     function localMetersToLatLon(xMeters, yMeters) {
-      const lat = HOME_LAT + (yMeters / EARTH_RADIUS_M) * (180 / Math.PI);
-      const lon = HOME_LON + (xMeters / EARTH_RADIUS_M) * (180 / Math.PI) / Math.cos(HOME_LAT * Math.PI / 180);
+
+      const lat =
+        HOME_LAT +
+        (yMeters / EARTH_RADIUS_M) *
+        (180 / Math.PI);
+
+      const lon =
+        HOME_LON +
+        (xMeters / EARTH_RADIUS_M) *
+        (180 / Math.PI) /
+        Math.cos(HOME_LAT * Math.PI / 180);
+
       return [lat, lon];
     }
 
-    // ---------- State ----------
+
+    // ============================================================
+    // PROGRAM STATE
+    // ============================================================
+
+    // Currently selected map tool
     let activeTool = "obstacle";
+
+    // Stores all obstacles placed by the user
     let obstacles = [];
+
+    // Default start and goal locations
     let start = { x: 10, y: 50 };
     let goal = { x: 90, y: 50 };
+
+    // Stores the path returned by the path planner
     let plannedPath = null;
-    let droneTrail = [];           // array of [lat, lon] points the drone has visited
-    let lastDroneLatLon = null;    // most recent drone position
+
+    // Stores the actual positions the drone has traveled through
+    let droneTrail = [];
+
+    // Most recent position received from the drone
+    let lastDroneLatLon = null;
+
+
+    // Keeps track of the objects currently drawn on the map
     let mapObjects = {
+
       obstacleCircles: [],
+
       startMarker: null,
       goalMarker: null,
+
       plannedLine: null,
       boundaryRect: null,
+
       droneMarker: null,
       trailLine: null
     };
 
-    // ---------- Map setup ----------
-    const map = L.map("map").setView([HOME_LAT, HOME_LON], 18);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap"
-    }).addTo(map);
 
-    // ---------- UI helpers ----------
+    // ============================================================
+    // MAP SETUP
+    // ============================================================
+
+    // Creates the Leaflet map
+    const map =
+      L.map("map")
+       .setView([HOME_LAT, HOME_LON], 18);
+
+
+    // Adds OpenStreetMap as the background map
+    L.tileLayer(
+      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      {
+        attribution: "© OpenStreetMap"
+      }
+    ).addTo(map);
+
+
+    // ============================================================
+    // USER INTERFACE HELPERS
+    // ============================================================
+
+    // Adds a timestamped message to the log window
     function log(msg) {
-      const el = document.getElementById("log");
-      const time = new Date().toLocaleTimeString();
-      el.textContent += `[${time}] ${msg}\n`;
-      el.scrollTop = el.scrollHeight;
+
+      const el =
+        document.getElementById("log");
+
+      const time =
+        new Date().toLocaleTimeString();
+
+      el.textContent +=
+        `[${time}] ${msg}\n`;
+
+      // Automatically scroll to newest message
+      el.scrollTop =
+        el.scrollHeight;
     }
 
+
+    // Changes which map tool is currently active
     function setTool(tool) {
+
       activeTool = tool;
-      ["obstacle", "start", "goal", "area"].forEach(t => {
-        document.getElementById("tool-" + t).classList.toggle("active", t === tool);
-      });
+
+      ["obstacle", "start", "goal", "area"]
+        .forEach(t => {
+
+          document
+            .getElementById("tool-" + t)
+            .classList
+            .toggle("active", t === tool);
+
+        });
     }
 
-    document.getElementById("tool-obstacle").onclick = () => setTool("obstacle");
-    document.getElementById("tool-start").onclick = () => setTool("start");
-    document.getElementById("tool-goal").onclick = () => setTool("goal");
-    document.getElementById("tool-area").onclick = () => setTool("area");
 
+    // Connect each button to its map tool
+    document.getElementById("tool-obstacle").onclick =
+      () => setTool("obstacle");
+
+    document.getElementById("tool-start").onclick =
+      () => setTool("start");
+
+    document.getElementById("tool-goal").onclick =
+      () => setTool("goal");
+
+    document.getElementById("tool-area").onclick =
+      () => setTool("area");
+
+
+    // Updates the displayed number beside each slider
     ["radius", "height", "altitude"].forEach(id => {
-      const input = document.getElementById(id);
-      const value = document.getElementById(id + "-value");
-      input.oninput = () => value.textContent = input.value;
+
+      const input =
+        document.getElementById(id);
+
+      const value =
+        document.getElementById(id + "-value");
+
+      input.oninput =
+        () => value.textContent = input.value;
+
     });
 
-    // ---------- Rendering ----------
+
+    // ============================================================
+    // MAP DRAWING
+    // ============================================================
+
+    // Redraws the planning area, obstacles, start/goal,
+    // and the planned flight path
     function redraw() {
-      // Boundary — redrawn fresh every time so it follows boundaryOriginX/Y.
-      if (mapObjects.boundaryRect) map.removeLayer(mapObjects.boundaryRect);
+
+
+      // ---------- Planning boundary ----------
+
+      // Remove the old boundary before drawing the new one
+      if (mapObjects.boundaryRect)
+        map.removeLayer(mapObjects.boundaryRect);
+
+
+      // Find the GPS coordinates of all four corners
       const corners = [
+
         worldToLatLon(0, 0),
+
         worldToLatLon(WORLD_SIZE, 0),
-        worldToLatLon(WORLD_SIZE, WORLD_SIZE),
-        worldToLatLon(0, WORLD_SIZE)
+
+        worldToLatLon(
+          WORLD_SIZE,
+          WORLD_SIZE
+        ),
+
+        worldToLatLon(
+          0,
+          WORLD_SIZE
+        )
+
       ];
-      mapObjects.boundaryRect = L.polygon(corners, {
-        color: "#4dd0a0", weight: 2, fillOpacity: 0.05, dashArray: "5,5"
-      }).addTo(map);
 
-      // Obstacles
-      mapObjects.obstacleCircles.forEach(c => map.removeLayer(c));
-      mapObjects.obstacleCircles = obstacles.map(o => {
-        const [lat, lon] = worldToLatLon(o.x, o.y);
-        const tall = o.height >= document.getElementById("altitude").value - 3;
-        const color = tall ? "#e57373" : "#9aa0a6";
-        const circle = L.circle([lat, lon], {
-          radius: o.radius, color: color, fillOpacity: 0.4, weight: 2
-        }).addTo(map);
-        circle.bindTooltip(`r=${o.radius}m h=${o.height}m`, { permanent: false });
-        circle.on("click", e => {
-          L.DomEvent.stopPropagation(e);
-          if (confirm(`Delete this obstacle?`)) {
-            obstacles = obstacles.filter(x => x !== o);
-            redraw();
-            log(`Deleted obstacle at (${o.x.toFixed(1)}, ${o.y.toFixed(1)})`);
+
+      // Draw the planning boundary
+      mapObjects.boundaryRect =
+        L.polygon(
+          corners,
+          {
+            color: "#4dd0a0",
+            weight: 2,
+            fillOpacity: 0.05,
+            dashArray: "5,5"
           }
+        ).addTo(map);
+
+
+      // ---------- Obstacles ----------
+
+      // Remove the old obstacle circles
+      mapObjects.obstacleCircles
+        .forEach(c => map.removeLayer(c));
+
+
+      // Draw every obstacle currently stored
+      mapObjects.obstacleCircles =
+        obstacles.map(o => {
+
+          const [lat, lon] =
+            worldToLatLon(o.x, o.y);
+
+
+          // Compare obstacle height to flight altitude
+          const tall =
+            o.height >=
+            document
+              .getElementById("altitude")
+              .value - 3;
+
+
+          // Tall obstacles are red
+          const color =
+            tall ? "#e57373" : "#9aa0a6";
+
+
+          const circle =
+            L.circle(
+              [lat, lon],
+              {
+                radius: o.radius,
+                color: color,
+                fillOpacity: 0.4,
+                weight: 2
+              }
+            ).addTo(map);
+
+
+          // Show obstacle information when hovering over it
+          circle.bindTooltip(
+            `r=${o.radius}m h=${o.height}m`,
+            { permanent: false }
+          );
+
+
+          // Clicking an obstacle lets the user delete it
+          circle.on("click", e => {
+
+            L.DomEvent.stopPropagation(e);
+
+            if (confirm("Delete this obstacle?")) {
+
+              obstacles =
+                obstacles.filter(
+                  x => x !== o
+                );
+
+              redraw();
+
+              log(
+                `Deleted obstacle at ` +
+                `(${o.x.toFixed(1)}, ` +
+                `${o.y.toFixed(1)})`
+              );
+            }
+          });
+
+
+          return circle;
         });
-        return circle;
-      });
 
-      // Start marker
-      if (mapObjects.startMarker) map.removeLayer(mapObjects.startMarker);
-      mapObjects.startMarker = L.circleMarker(worldToLatLon(start.x, start.y), {
-        radius: 8, color: "#4dd0a0", fillColor: "#4dd0a0", fillOpacity: 1
-      }).addTo(map).bindTooltip("Start");
 
-      // Goal marker
-      if (mapObjects.goalMarker) map.removeLayer(mapObjects.goalMarker);
-      mapObjects.goalMarker = L.circleMarker(worldToLatLon(goal.x, goal.y), {
-        radius: 8, color: "#e57373", fillColor: "#e57373", fillOpacity: 1
-      }).addTo(map).bindTooltip("Goal");
+      // ---------- Start marker ----------
 
-      // Planned path
+      if (mapObjects.startMarker)
+        map.removeLayer(
+          mapObjects.startMarker
+        );
+
+
+      mapObjects.startMarker =
+        L.circleMarker(
+          worldToLatLon(
+            start.x,
+            start.y
+          ),
+          {
+            radius: 8,
+            color: "#4dd0a0",
+            fillColor: "#4dd0a0",
+            fillOpacity: 1
+          }
+        )
+        .addTo(map)
+        .bindTooltip("Start");
+
+
+      // ---------- Goal marker ----------
+
+      if (mapObjects.goalMarker)
+        map.removeLayer(
+          mapObjects.goalMarker
+        );
+
+
+      mapObjects.goalMarker =
+        L.circleMarker(
+          worldToLatLon(
+            goal.x,
+            goal.y
+          ),
+          {
+            radius: 8,
+            color: "#e57373",
+            fillColor: "#e57373",
+            fillOpacity: 1
+          }
+        )
+        .addTo(map)
+        .bindTooltip("Goal");
+
+
+      // ---------- Planned path ----------
+
+      // Remove the previous planned path
       if (mapObjects.plannedLine) {
-        map.removeLayer(mapObjects.plannedLine);
+
+        map.removeLayer(
+          mapObjects.plannedLine
+        );
+
         mapObjects.plannedLine = null;
       }
-      if (plannedPath && plannedPath.length >= 2) {
-        const latlngs = plannedPath.map(p => worldToLatLon(p.x, p.y));
-        mapObjects.plannedLine = L.polyline(latlngs, {
-          color: "#4dd0a0", weight: 4, opacity: 0.8, dashArray: "8,4"
-        }).addTo(map);
+
+
+      // Draw the new planned path
+      if (
+        plannedPath &&
+        plannedPath.length >= 2
+      ) {
+
+        const latlngs =
+          plannedPath.map(
+            p => worldToLatLon(p.x, p.y)
+          );
+
+
+        mapObjects.plannedLine =
+          L.polyline(
+            latlngs,
+            {
+              color: "#4dd0a0",
+              weight: 4,
+              opacity: 0.8,
+              dashArray: "8,4"
+            }
+          ).addTo(map);
       }
     }
 
-    // ---------- Click handler ----------
+
+    // ============================================================
+    // MAP CLICK HANDLER
+    // ============================================================
+
+    // Handles clicks depending on which tool the user selected
     map.on("click", e => {
-      // For the "area" tool, clicks can be anywhere on the map — they move the
-      // boundary, not place obstacles inside it.
+
+
+      // ---------- Move planning area ----------
+
       if (activeTool === "area") {
-        // Reposition the boundary so the click becomes its NEW center.
-        // Translate the click into "global meters from HOME", then back off by
-        // half the world size to get the new SW corner.
-        const yGlobal = (e.latlng.lat - HOME_LAT) * (Math.PI / 180) * EARTH_RADIUS_M;
-        const xGlobal = (e.latlng.lng - HOME_LON) * (Math.PI / 180) * EARTH_RADIUS_M
-                      * Math.cos(HOME_LAT * Math.PI / 180);
-        boundaryOriginX = xGlobal - WORLD_SIZE / 2;
-        boundaryOriginY = yGlobal - WORLD_SIZE / 2;
-        log(`Planning area moved to (${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)})`);
+
+        // Convert the clicked GPS location into meters
+        const yGlobal =
+          (e.latlng.lat - HOME_LAT) *
+          (Math.PI / 180) *
+          EARTH_RADIUS_M;
+
+
+        const xGlobal =
+          (e.latlng.lng - HOME_LON) *
+          (Math.PI / 180) *
+          EARTH_RADIUS_M *
+          Math.cos(
+            HOME_LAT *
+            Math.PI / 180
+          );
+
+
+        // Move the center of the planning area to the click
+        boundaryOriginX =
+          xGlobal - WORLD_SIZE / 2;
+
+        boundaryOriginY =
+          yGlobal - WORLD_SIZE / 2;
+
+
+        log(
+          `Planning area moved to ` +
+          `(${e.latlng.lat.toFixed(5)}, ` +
+          `${e.latlng.lng.toFixed(5)})`
+        );
+
+
         redraw();
+
         return;
       }
 
-      const { x, y } = latLonToWorld(e.latlng.lat, e.latlng.lng);
-      if (x < 0 || x > WORLD_SIZE || y < 0 || y > WORLD_SIZE) {
-        log(`Click outside planning area — ignored`);
+
+      // Convert the map click into local x/y coordinates
+      const { x, y } =
+        latLonToWorld(
+          e.latlng.lat,
+          e.latlng.lng
+        );
+
+
+      // Ignore clicks outside the planning boundary
+      if (
+        x < 0 ||
+        x > WORLD_SIZE ||
+        y < 0 ||
+        y > WORLD_SIZE
+      ) {
+
+        log(
+          "Click outside planning area — ignored"
+        );
+
         return;
       }
+
+
+      // ---------- Place obstacle ----------
+
       if (activeTool === "obstacle") {
-        const radius = parseFloat(document.getElementById("radius").value);
-        const height = parseFloat(document.getElementById("height").value);
-        obstacles.push({ x, y, radius, height });
-        log(`Placed obstacle at (${x.toFixed(1)}, ${y.toFixed(1)}) r=${radius} h=${height}`);
-      } else if (activeTool === "start") {
-        start = { x, y };
-        log(`Start set to (${x.toFixed(1)}, ${y.toFixed(1)})`);
-      } else if (activeTool === "goal") {
-        goal = { x, y };
-        log(`Goal set to (${x.toFixed(1)}, ${y.toFixed(1)})`);
+
+        const radius =
+          parseFloat(
+            document
+              .getElementById("radius")
+              .value
+          );
+
+
+        const height =
+          parseFloat(
+            document
+              .getElementById("height")
+              .value
+          );
+
+
+        obstacles.push({
+          x,
+          y,
+          radius,
+          height
+        });
+
+
+        log(
+          `Placed obstacle at ` +
+          `(${x.toFixed(1)}, ` +
+          `${y.toFixed(1)}) ` +
+          `r=${radius} h=${height}`
+        );
       }
+
+
+      // ---------- Set start ----------
+
+      else if (activeTool === "start") {
+
+        start = { x, y };
+
+        log(
+          `Start set to ` +
+          `(${x.toFixed(1)}, ` +
+          `${y.toFixed(1)})`
+        );
+      }
+
+
+      // ---------- Set goal ----------
+
+      else if (activeTool === "goal") {
+
+        goal = { x, y };
+
+        log(
+          `Goal set to ` +
+          `(${x.toFixed(1)}, ` +
+          `${y.toFixed(1)})`
+        );
+      }
+
+
+      // Any change means the old path is no longer valid
       plannedPath = null;
-      document.getElementById("btn-fly").disabled = true;
+
+      document
+        .getElementById("btn-fly")
+        .disabled = true;
+
+
       redraw();
     });
 
-    // ---------- Altitude slider triggers obstacle recolor (tall vs short) ----------
-    document.getElementById("altitude").oninput = () => {
-      document.getElementById("altitude-value").textContent =
-        document.getElementById("altitude").value;
-      redraw();
-    };
 
-    // ---------- API calls ----------
+    // ============================================================
+    // ALTITUDE CONTROL
+    // ============================================================
 
-    // ---------- Telemetry COM-port discovery ----------
+    // Redraw obstacles when altitude changes
+    // because obstacle colors depend on the flight altitude
+    document
+      .getElementById("altitude")
+      .oninput = () => {
+
+        document
+          .getElementById("altitude-value")
+          .textContent =
+            document
+              .getElementById("altitude")
+              .value;
+
+        redraw();
+      };
+
+
+    // ============================================================
+    // TELEMETRY COM PORTS
+    // ============================================================
+
+    // Gets available COM ports from the backend
+    // The SiK telemetry radio should appear in this list
     async function loadTelemetryPorts() {
-      const select = document.getElementById("telemetry-port");
-      const connectButton = document.getElementById("btn-connect-telemetry");
 
-      select.innerHTML = '<option value="">Loading ports...</option>';
+      const select =
+        document.getElementById(
+          "telemetry-port"
+        );
+
+
+      const connectButton =
+        document.getElementById(
+          "btn-connect-telemetry"
+        );
+
+
+      // Show loading message while waiting for the backend
+      select.innerHTML =
+        '<option value="">Loading ports...</option>';
+
+
       connectButton.disabled = true;
 
+
       try {
-        const res = await fetch(API_BASE + "/api/telemetry/ports");
-        const data = await res.json();
+
+        // Ask Program.cs for the available COM ports
+        const res =
+          await fetch(
+            API_BASE +
+            "/api/telemetry/ports"
+          );
+
+
+        const data =
+          await res.json();
+
 
         select.innerHTML = "";
 
-        if (!data.success || !data.ports || data.ports.length === 0) {
-          select.innerHTML = '<option value="">No COM ports found</option>';
-          log("No telemetry COM ports detected");
+
+        // Nothing was detected
+        if (
+          !data.success ||
+          !data.ports ||
+          data.ports.length === 0
+        ) {
+
+          select.innerHTML =
+            '<option value="">No COM ports found</option>';
+
+
+          log(
+            "No telemetry COM ports detected"
+          );
+
+
           return;
         }
 
-        data.ports.forEach(port => {
-          const option = document.createElement("option");
 
-          option.value = port.device;
-          option.textContent = `${port.device} - ${port.description}`;
+        // Add each COM port to the dropdown
+        data.ports.forEach(port => {
+
+          const option =
+            document.createElement(
+              "option"
+            );
+
+
+          option.value =
+            port.device;
+
+
+          option.textContent =
+            `${port.device} - ${port.description}`;
+
 
           select.appendChild(option);
+
         });
+
 
         connectButton.disabled = false;
-        log(`Detected ${data.ports.length} COM port(s)`);
 
-      } catch (e) {
-        select.innerHTML = '<option value="">Bridge unavailable</option>';
+
+        log(
+          `Detected ${data.ports.length} COM port(s)`
+        );
+
+      }
+
+      catch (e) {
+
+        select.innerHTML =
+          '<option value="">Bridge unavailable</option>';
+
+
         connectButton.disabled = true;
-        log(`✗ Could not load COM ports: ${e}`);
+
+
+        log(
+          `✗ Could not load COM ports: ${e}`
+        );
       }
     }
 
-    document.getElementById("btn-refresh-ports").onclick = loadTelemetryPorts;
 
+    // Refresh button checks for COM ports again
+    document
+      .getElementById("btn-refresh-ports")
+      .onclick =
+        loadTelemetryPorts;
+
+
+    // ============================================================
+    // PATH PLANNING
+    // ============================================================
+
+    // Sends the mission information to the backend
+    // The backend returns a list of calculated waypoints
     async function planPath() {
-      const altitude = parseFloat(document.getElementById("altitude").value);
-      const body = { obstacles, start, goal, altitudeMeters: altitude };
-      log(`Planning... (${obstacles.length} obstacles, altitude ${altitude}m)`);
+
+      const altitude =
+        parseFloat(
+          document
+            .getElementById("altitude")
+            .value
+        );
+
+
+      // Data that gets sent to Program.cs
+      const body = {
+        obstacles,
+        start,
+        goal,
+        altitudeMeters: altitude
+      };
+
+
+      log(
+        `Planning... ` +
+        `(${obstacles.length} obstacles, ` +
+        `altitude ${altitude}m)`
+      );
+
+
       try {
-        const res = await fetch(API_BASE + "/api/plan", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
-        const data = await res.json();
+
+        const res =
+          await fetch(
+            API_BASE + "/api/plan",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body:
+                JSON.stringify(body)
+            }
+          );
+
+
+        const data =
+          await res.json();
+
+
+        // Path was successfully calculated
         if (data.success) {
-          plannedPath = data.waypoints;
-          log(`✓ ${data.message}`);
-          document.getElementById("btn-fly").disabled = false;
-        } else {
-          plannedPath = null;
-          log(`✗ ${data.message}`);
-          document.getElementById("btn-fly").disabled = true;
+
+          plannedPath =
+            data.waypoints;
+
+
+          log(
+            `✓ ${data.message}`
+          );
+
+
+          document
+            .getElementById("btn-fly")
+            .disabled = false;
         }
+
+        // Path planner could not find a path
+        else {
+
+          plannedPath = null;
+
+
+          log(
+            `✗ ${data.message}`
+          );
+
+
+          document
+            .getElementById("btn-fly")
+            .disabled = true;
+        }
+
+
         redraw();
-      } catch (e) {
-        log(`✗ Plan failed: ${e}`);
+      }
+
+      catch (e) {
+
+        log(
+          `✗ Plan failed: ${e}`
+        );
       }
     }
 
+
+    // ============================================================
+    // FLY MISSION
+    // ============================================================
+
+    // Sends the planned waypoints to the backend
     async function flyMission() {
-      if (!plannedPath || plannedPath.length < 2) {
+
+      // Make sure a path exists before trying to fly
+      if (
+        !plannedPath ||
+        plannedPath.length < 2
+      ) {
+
         log("No planned path");
+
         return;
       }
-      const altitude = parseFloat(document.getElementById("altitude").value);
-      log(`Flying ${plannedPath.length} waypoints at ${altitude}m...`);
-      document.getElementById("btn-fly").disabled = true;
-      // Reset the trail so we cleanly see this mission's actual path.
+
+
+      const altitude =
+        parseFloat(
+          document
+            .getElementById("altitude")
+            .value
+        );
+
+
+      log(
+        `Flying ${plannedPath.length} ` +
+        `waypoints at ${altitude}m...`
+      );
+
+
+      // Prevent the button from being pressed repeatedly
+      document
+        .getElementById("btn-fly")
+        .disabled = true;
+
+
+      // Clear the old drone trail before a new mission
       droneTrail = [];
+
+
       try {
-        const res = await fetch(API_BASE + "/api/fly", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ waypoints: plannedPath, altitudeMeters: altitude })
-        });
-        const data = await res.json();
-        log(`✓ Mission started (${data.waypoints} waypoints)`);
-        log(`  Watch QGroundControl for live flight`);
-      } catch (e) {
-        log(`✗ Fly failed: ${e}`);
-      } finally {
-        setTimeout(() => {
-          document.getElementById("btn-fly").disabled = false;
-        }, 5000);
+
+        const res =
+          await fetch(
+            API_BASE + "/api/fly",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body:
+                JSON.stringify({
+                  waypoints:
+                    plannedPath,
+
+                  altitudeMeters:
+                    altitude
+                })
+            }
+          );
+
+
+        const data =
+          await res.json();
+
+
+        log(
+          `✓ Mission started ` +
+          `(${data.waypoints} waypoints)`
+        );
+
+
+        log(
+          "  Watch QGroundControl for live flight"
+        );
+
+      }
+
+      catch (e) {
+
+        log(
+          `✗ Fly failed: ${e}`
+        );
+
+      }
+
+      finally {
+
+        // Allow another command after a short delay
+        setTimeout(
+          () => {
+
+            document
+              .getElementById("btn-fly")
+              .disabled = false;
+
+          },
+          5000
+        );
       }
     }
 
+
+    // ============================================================
+    // ABORT MISSION
+    // ============================================================
+
+    // Sends a request to land the drone immediately
     async function abortMission() {
-      log(`Aborting mission — switching to LAND...`);
+
+      log(
+        "Aborting mission — switching to LAND..."
+      );
+
+
       try {
-        const res = await fetch(API_BASE + "/api/abort", { method: "POST" });
-        const data = await res.json();
-        log(`✓ Abort: ${data.message || data.status}`);
-      } catch (e) {
-        log(`✗ Abort failed: ${e}`);
+
+        const res =
+          await fetch(
+            API_BASE + "/api/abort",
+            {
+              method: "POST"
+            }
+          );
+
+
+        const data =
+          await res.json();
+
+
+        log(
+          `✓ Abort: ` +
+          `${data.message || data.status}`
+        );
+
+      }
+
+      catch (e) {
+
+        log(
+          `✗ Abort failed: ${e}`
+        );
       }
     }
 
+
+    // ============================================================
+    // CLEAR MAP
+    // ============================================================
+
+    // Removes all obstacles and clears the current path
     function clearAll() {
+
       obstacles = [];
+
       plannedPath = null;
-      document.getElementById("btn-fly").disabled = true;
-      log(`Cleared all obstacles`);
+
+
+      document
+        .getElementById("btn-fly")
+        .disabled = true;
+
+
+      log(
+        "Cleared all obstacles"
+      );
+
+
       redraw();
     }
 
-    document.getElementById("btn-plan").onclick = planPath;
-    document.getElementById("btn-fly").onclick = flyMission;
-    document.getElementById("btn-abort").onclick = abortMission;
-    document.getElementById("btn-clear").onclick = clearAll;
 
-    // ---------- Drone live tracking ----------
-    // Poll /api/status every 1 second. When the drone has moved at least a meter
-    // since last poll, append to the trail. Always update the icon position.
+    // Connect the action buttons to their functions
+    document.getElementById("btn-plan").onclick =
+      planPath;
+
+    document.getElementById("btn-fly").onclick =
+      flyMission;
+
+    document.getElementById("btn-abort").onclick =
+      abortMission;
+
+    document.getElementById("btn-clear").onclick =
+      clearAll;
+
+
+    // ============================================================
+    // LIVE DRONE TRACKING
+    // ============================================================
+
+    // Gets the drone position from the backend
+    // This function runs once every second
     async function pollDronePosition() {
+
       try {
-        const res = await fetch(API_BASE + "/api/status");
-        const data = await res.json();
-        if (!data.connected) return;
 
-        const latLon = localMetersToLatLon(data.xLocal, data.yLocal);
+        const res =
+          await fetch(
+            API_BASE + "/api/status"
+          );
 
-        // Add to trail if we've moved at least 1 meter from the last point.
-        if (!lastDroneLatLon || haversineMeters(lastDroneLatLon, latLon) > 1.0) {
+
+        const data =
+          await res.json();
+
+
+        // Don't update anything if the drone is not connected
+        if (!data.connected)
+          return;
+
+
+        // Convert the local position into GPS coordinates
+        const latLon =
+          localMetersToLatLon(
+            data.xLocal,
+            data.yLocal
+          );
+
+
+        // Only add a new trail point if the drone
+        // has moved at least one meter
+        if (
+          !lastDroneLatLon ||
+          haversineMeters(
+            lastDroneLatLon,
+            latLon
+          ) > 1.0
+        ) {
+
           droneTrail.push(latLon);
-          // Cap trail length so it doesn't grow forever.
-          if (droneTrail.length > 500) droneTrail.shift();
+
+
+          // Prevent the trail from growing forever
+          if (droneTrail.length > 500)
+            droneTrail.shift();
         }
-        lastDroneLatLon = latLon;
+
+
+        // Save the newest position
+        lastDroneLatLon =
+          latLon;
+
+
         redrawDrone();
-      } catch (e) {
-        // Drone unavailable — that's fine, just don't update.
+
+      }
+
+      catch (e) {
+
+        // If the drone is unavailable, just wait for the next update
       }
     }
 
+
+    // Calculates distance between two GPS coordinates
     function haversineMeters(a, b) {
-      const toRad = d => d * Math.PI / 180;
-      const dLat = toRad(b[0] - a[0]);
-      const dLon = toRad(b[1] - a[1]);
-      const lat1 = toRad(a[0]);
-      const lat2 = toRad(b[0]);
-      const x = Math.sin(dLat/2) ** 2 + Math.sin(dLon/2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
-      return 2 * EARTH_RADIUS_M * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+
+      const toRad =
+        d => d * Math.PI / 180;
+
+
+      const dLat =
+        toRad(b[0] - a[0]);
+
+
+      const dLon =
+        toRad(b[1] - a[1]);
+
+
+      const lat1 =
+        toRad(a[0]);
+
+
+      const lat2 =
+        toRad(b[0]);
+
+
+      const x =
+        Math.sin(dLat / 2) ** 2 +
+
+        Math.sin(dLon / 2) ** 2 *
+
+        Math.cos(lat1) *
+
+        Math.cos(lat2);
+
+
+      return (
+        2 *
+        EARTH_RADIUS_M *
+        Math.atan2(
+          Math.sqrt(x),
+          Math.sqrt(1 - x)
+        )
+      );
     }
 
+
+    // Draws the current drone position and traveled path
     function redrawDrone() {
-      if (mapObjects.droneMarker) map.removeLayer(mapObjects.droneMarker);
-      if (mapObjects.trailLine) map.removeLayer(mapObjects.trailLine);
 
-      if (!lastDroneLatLon) return;
 
-      // Trail.
+      // Remove old drone marker
+      if (mapObjects.droneMarker)
+        map.removeLayer(
+          mapObjects.droneMarker
+        );
+
+
+      // Remove old trail line
+      if (mapObjects.trailLine)
+        map.removeLayer(
+          mapObjects.trailLine
+        );
+
+
+      // Nothing to draw until a position has been received
+      if (!lastDroneLatLon)
+        return;
+
+
+      // ---------- Drone trail ----------
+
       if (droneTrail.length >= 2) {
-        mapObjects.trailLine = L.polyline(droneTrail, {
-          color: "#5599ff", weight: 3, opacity: 0.6
-        }).addTo(map);
+
+        mapObjects.trailLine =
+          L.polyline(
+            droneTrail,
+            {
+              color: "#5599ff",
+              weight: 3,
+              opacity: 0.6
+            }
+          ).addTo(map);
       }
 
-      // Drone icon — blue circle, slightly larger than start/goal markers.
-      mapObjects.droneMarker = L.circleMarker(lastDroneLatLon, {
-        radius: 10,
-        color: "#3377cc",
-        fillColor: "#5599ff",
-        fillOpacity: 1,
-        weight: 3
-      }).addTo(map).bindTooltip("Drone");
+
+      // ---------- Drone marker ----------
+
+      // Blue circle shows the drone's current location
+      mapObjects.droneMarker =
+        L.circleMarker(
+          lastDroneLatLon,
+          {
+            radius: 10,
+            color: "#3377cc",
+            fillColor: "#5599ff",
+            fillOpacity: 1,
+            weight: 3
+          }
+        )
+        .addTo(map)
+        .bindTooltip("Drone");
     }
 
-    setInterval(pollDronePosition, 1000);
+
+    // Check for a new drone position every second
+    setInterval(
+      pollDronePosition,
+      1000
+    );
+
+
+    // Check immediately when the page first loads
     pollDronePosition();
 
-    // ---------- Initial draw ----------
 
-    // Load available COM ports when the GCS first opens.
+    // ============================================================
+    // STARTUP
+    // ============================================================
+
+    // Check which COM ports are available when the GUI opens
     loadTelemetryPorts();
 
+
+    // Draw the initial map
     redraw();
-    log("Ready. Click on the map (inside the dashed boundary) to place obstacles.");
+
+
+    // Initial message shown in the log
+    log(
+      "Ready. Click on the map " +
+      "(inside the dashed boundary) " +
+      "to place obstacles."
+    );
+
   </script>
+
 </body>
 </html>

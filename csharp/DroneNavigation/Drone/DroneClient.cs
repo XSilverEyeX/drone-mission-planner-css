@@ -5,109 +5,300 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-// C# client for the Python drone bridge.
+
+// ============================================================
+// DRONE CLIENT
+// ============================================================
+
+// This class handles communication between C# and the Python bridge.
 //
-// The bridge listens on TCP 127.0.0.1:5555 and accepts newline-delimited JSON
-// commands. Each command gets exactly one response. This class wraps the wire
-// protocol with strongly-typed methods so callers do not have to think about
-// sockets or JSON.
+// Communication:
+// Program.cs -> DroneClient.cs -> Python bridge
 //
-// Usage:
-//   using DroneClient client = new DroneClient();
-//   client.Connect();
-//   client.SetHome();
-//   client.Arm();
-//   client.Takeoff(20);
-//   client.GotoLocal(50, 30, 20);
-//   client.Land();
+// The connection uses TCP on:
+// 127.0.0.1:5555
 //
-// Each method blocks until the bridge responds. Errors come back as a
-// DroneResponse with Status == "error" — callers should check before continuing.
+// Commands are sent to Python as JSON.
+// Python sends a JSON response back.
 public class DroneClient : IDisposable
 {
+
+    // ---------- Connection settings ----------
+
+    // Python bridge is running on the same computer
     private const string DefaultHost = "127.0.0.1";
+
+    // TCP port used by the Python bridge
     private const int DefaultPort = 5555;
 
+
+    // Stores the host and port being used
     private readonly string _host;
     private readonly int _port;
+
+
+    // TCP connection to the Python bridge
     private TcpClient? _socket;
+
+
+    // Used to receive messages from Python
     private StreamReader? _reader;
+
+
+    // Used to send messages to Python
     private StreamWriter? _writer;
 
-    // Prevent multiple API requests from using the TCP stream at the same time.
-    // This keeps each command paired with the correct Python response.
+
+    // Only allows one command to use the connection at a time
+    // This keeps commands and responses from getting mixed together
     private readonly object _sendLock = new();
 
-    public DroneClient(string host = DefaultHost, int port = DefaultPort)
+
+
+    // ============================================================
+    // SETUP
+    // ============================================================
+
+    // Creates the DroneClient using the default IP and port
+    public DroneClient(
+        string host = DefaultHost,
+        int port = DefaultPort
+    )
     {
         _host = host;
         _port = port;
     }
 
-    public bool IsConnected => _socket?.Connected ?? false;
 
+    // Returns true if C# currently has a TCP connection to Python
+    public bool IsConnected =>
+        _socket?.Connected ?? false;
+
+
+
+    // ============================================================
+    // CONNECT TO PYTHON
+    // ============================================================
+
+    // Opens the TCP connection between C# and the Python bridge
     public void Connect()
     {
+
+        // Create a new TCP socket
         _socket = new TcpClient();
-        _socket.Connect(_host, _port);
-        NetworkStream stream = _socket.GetStream();
-        _reader = new StreamReader(stream, Encoding.UTF8);
-        _writer = new StreamWriter(stream, new UTF8Encoding(false))
-        {
-            AutoFlush = true,
-            NewLine = "\n"
-        };
+
+
+        // Connect to Python at 127.0.0.1:5555
+        _socket.Connect(
+            _host,
+            _port
+        );
+
+
+        // Get the network stream used to send and receive data
+        NetworkStream stream =
+            _socket.GetStream();
+
+
+        // Reader receives responses from Python
+        _reader =
+            new StreamReader(
+                stream,
+                Encoding.UTF8
+            );
+
+
+        // Writer sends commands to Python
+        _writer =
+            new StreamWriter(
+                stream,
+                new UTF8Encoding(false)
+            )
+            {
+                // Immediately sends data instead of waiting
+                AutoFlush = true,
+
+                // Python expects each JSON command on its own line
+                NewLine = "\n"
+            };
     }
 
-    // High-level commands — each sends a single JSON object and reads the response.
 
-    public DroneResponse SetHome() => Send(new { cmd = "set_home" });
 
-    public DroneResponse Arm() => Send(new { cmd = "arm" });
+    // ============================================================
+    // DRONE COMMANDS
+    // ============================================================
 
-    public DroneResponse Takeoff(double altitudeMeters) =>
-        Send(new { cmd = "takeoff", altitude = altitudeMeters });
+    // These functions make it easier for Program.cs to send
+    // commands without manually creating JSON every time.
 
-    public DroneResponse Goto(double lat, double lon, double altitudeMeters) =>
-        Send(new { cmd = "goto", lat, lon, altitude = altitudeMeters });
 
-    // Flies to a point expressed as meters offset from home: x is east, y is north.
-    // This is the method the path planner will use — it speaks in local meters.
-    public DroneResponse GotoLocal(double x, double y, double altitudeMeters) =>
-        Send(new { cmd = "goto_local", x, y, altitude = altitudeMeters });
+    // Tell Python to save the current drone location as home
+    public DroneResponse SetHome() =>
+        Send(
+            new
+            {
+                cmd = "set_home"
+            }
+        );
 
-    public DroneResponse Land() => Send(new { cmd = "land" });
 
-    public DroneResponse GetPosition() => Send(new { cmd = "get_position" });
+    // Send an ARM command
+    public DroneResponse Arm() =>
+        Send(
+            new
+            {
+                cmd = "arm"
+            }
+        );
 
-    // Requests the list of serial/COM ports detected by the Python bridge.
-    // Used by the GUI to populate the telemetry COM-port dropdown.
-    public DroneResponse GetPorts() => Send(new { cmd = "get_ports" });
 
-    // Sends an arbitrary command object as JSON, reads one line of response,
-    // and parses it back into a DroneResponse.
-    private DroneResponse Send(object command)
+    // Tell the drone to take off to a selected altitude
+    public DroneResponse Takeoff(
+        double altitudeMeters
+    ) =>
+        Send(
+            new
+            {
+                cmd = "takeoff",
+                altitude = altitudeMeters
+            }
+        );
+
+
+    // Fly to a GPS latitude and longitude
+    public DroneResponse Goto(
+        double lat,
+        double lon,
+        double altitudeMeters
+    ) =>
+        Send(
+            new
+            {
+                cmd = "goto",
+                lat,
+                lon,
+                altitude = altitudeMeters
+            }
+        );
+
+
+    // Fly to a point using local x/y coordinates
+    //
+    // x = meters east/west
+    // y = meters north/south
+    //
+    // This is useful because the path planner works in meters
+    // instead of directly using GPS coordinates.
+    public DroneResponse GotoLocal(
+        double x,
+        double y,
+        double altitudeMeters
+    ) =>
+        Send(
+            new
+            {
+                cmd = "goto_local",
+                x,
+                y,
+                altitude = altitudeMeters
+            }
+        );
+
+
+    // Send a LAND command
+    public DroneResponse Land() =>
+        Send(
+            new
+            {
+                cmd = "land"
+            }
+        );
+
+
+    // Ask Python for the drone's current GPS position
+    public DroneResponse GetPosition() =>
+        Send(
+            new
+            {
+                cmd = "get_position"
+            }
+        );
+
+
+    // Ask Python which COM ports Windows currently detects
+    //
+    // The GUI uses this to find the SiK telemetry radio
+    // and display the available ports in the dropdown.
+    public DroneResponse GetPorts() =>
+        Send(
+            new
+            {
+                cmd = "get_ports"
+            }
+        );
+
+
+
+    // ============================================================
+    // SEND COMMAND TO PYTHON
+    // ============================================================
+
+    // All of the commands above eventually come through this function.
+    //
+    // Example:
+    //
+    // C#:
+    // Arm()
+    //
+    // becomes:
+    //
+    // {"cmd":"arm"}
+    //
+    // That JSON is sent to the Python bridge.
+    private DroneResponse Send(
+        object command
+    )
     {
-        // Only allow one command at a time to use the TCP connection.
-        // This prevents /api/status and other API calls from mixing responses.
+
+        // Only let one command use the TCP connection at a time
+        //
+        // This is important because /api/status may be checking
+        // the drone while another command is also being sent.
         lock (_sendLock)
         {
-            if (_writer == null || _reader == null)
+
+            // Make sure Connect() was called first
+            if (
+                _writer == null ||
+                _reader == null
+            )
             {
                 throw new InvalidOperationException(
                     "Not connected. Call Connect() first."
                 );
             }
 
-            // Convert the C# command into JSON.
-            string json = JsonSerializer.Serialize(command);
 
-            // Send one command to the Python bridge.
-            _writer.WriteLine(json);
+            // Convert the C# command into JSON
+            string json =
+                JsonSerializer.Serialize(
+                    command
+                );
 
-            // Read the response belonging to this command.
-            string? line = _reader.ReadLine();
 
+            // Send the JSON command to Python
+            _writer.WriteLine(
+                json
+            );
+
+
+            // Wait for Python to send one response back
+            string? line =
+                _reader.ReadLine();
+
+
+            // If Python closed the connection without responding
             if (line == null)
             {
                 throw new IOException(
@@ -115,42 +306,106 @@ public class DroneClient : IDisposable
                 );
             }
 
-            // Convert the Python response back into a DroneResponse.
-            DroneResponse? response =
-                JsonSerializer.Deserialize<DroneResponse>(line);
 
-            return response ?? new DroneResponse
-            {
-                Status = "error",
-                Message = "Could not parse bridge response"
-            };
+            // Convert Python's JSON response back into C#
+            DroneResponse? response =
+                JsonSerializer.Deserialize<DroneResponse>(
+                    line
+                );
+
+
+            // Return the response to Program.cs
+            //
+            // If the JSON could not be read, return an error instead
+            return response ??
+                new DroneResponse
+                {
+                    Status = "error",
+
+                    Message =
+                        "Could not parse bridge response"
+                };
         }
     }
 
+
+
+    // ============================================================
+    // CLOSE CONNECTION
+    // ============================================================
+
+    // Closes the reader, writer, and TCP connection
+    // when DroneClient is no longer being used
     public void Dispose()
     {
         _reader?.Dispose();
         _writer?.Dispose();
         _socket?.Dispose();
+
         GC.SuppressFinalize(this);
     }
 }
 
-// Strongly typed representation of a bridge response. Matches the JSON shape:
-//   {"status": "ok" | "error", "message": "...", "data": {...optional...}}
+
+
+// ============================================================
+// PYTHON RESPONSE
+// ============================================================
+
+// Represents the JSON response sent back by Python.
+//
+// Example:
+//
+// {
+//     "status": "ok",
+//     "message": "Command completed",
+//     "data": { ... }
+// }
+//
+// This lets the rest of the C# program work with the Python
+// response like a normal C# object.
 public class DroneResponse
 {
+
+    // "ok" or "error"
     [JsonPropertyName("status")]
-    public string Status { get; set; } = "";
+    public string Status
+    {
+        get;
+        set;
+    } = "";
 
+
+    // Message explaining what happened
     [JsonPropertyName("message")]
-    public string? Message { get; set; }
+    public string? Message
+    {
+        get;
+        set;
+    }
 
+
+    // Optional information returned by Python
+    // Example: GPS position or COM-port list
     [JsonPropertyName("data")]
-    public JsonElement? Data { get; set; }
+    public JsonElement? Data
+    {
+        get;
+        set;
+    }
 
-    public bool IsOk => Status == "ok";
 
+    // Quick way to check if Python said the command worked
+    public bool IsOk =>
+        Status == "ok";
+
+
+    // Makes the response easier to print in the terminal
     public override string ToString() =>
-        $"[{Status}] {Message ?? ""}" + (Data.HasValue ? $" data={Data}" : "");
+        $"[{Status}] {Message ?? ""}" +
+        (
+            Data.HasValue
+                ? $" data={Data}"
+                : ""
+        );
 }

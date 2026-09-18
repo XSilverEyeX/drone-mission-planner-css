@@ -6,10 +6,15 @@ using DroneNavigation.PathPlanning;
 using DroneNavigation.QuadTree;
 using DroneNavigation.Web.Models;
 
+
+// Creates the ASP.NET web application
 var builder = WebApplication.CreateBuilder(args);
 
-// Allow the browser frontend to call us from a different origin during development.
-// In production this should be restricted to specific origins.
+
+// ---------- CORS ----------
+
+// Allows the website to communicate with the backend
+// This is mainly useful while developing and testing
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -18,40 +23,60 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader());
 });
 
-// Register one DroneClient that is shared across API requests.
-// This maintains the TCP connection between C# and the Python bridge.
+
+// ---------- Drone client ----------
+
+// Creates one shared DroneClient for the whole application
+// DroneClient handles communication between C# and Python
 builder.Services.AddSingleton<DroneClient>();
+
 
 var app = builder.Build();
 
+
+// Enables CORS and allows the website files to be loaded
 app.UseCors();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 
+
 // ============================================================
-// WORLD CONFIGURATION
+// PATH PLANNER SETTINGS
 // ============================================================
 
-// Same coordinate system used by the existing path planner.
+// Size of the local planning area in meters
 const double WorldSize = 100.0;
+
+// Size of each grid cell used by the path planner
 const double CellSize = 4.0;
+
+// Extra distance the drone should stay away from obstacles
 const double SafetyBufferMeters = 3.0;
+
 
 
 // ============================================================
 // PLAN PATH
 // ============================================================
 
-// Given obstacles, start, goal, and altitude,
-// calculate a safe path for the drone.
+// Receives the obstacles, start, goal, and altitude from the GUI
+// and calculates a safe path using the A* path planner
 app.MapPost("/api/plan", (PlanRequest req) =>
 {
+
+    // Create the QuadTree that stores the obstacles
     QuadTree tree = new QuadTree(
-        new Rectangle(0, 0, WorldSize, WorldSize)
+        new Rectangle(
+            0,
+            0,
+            WorldSize,
+            WorldSize
+        )
     );
 
-    // Add all obstacles from the website into the QuadTree.
+
+    // Add each obstacle from the GUI into the QuadTree
     foreach (ObstacleDto o in req.Obstacles)
     {
         tree.Insert(
@@ -64,214 +89,322 @@ app.MapPost("/api/plan", (PlanRequest req) =>
         );
     }
 
-    // Build the grid used by the A* path planner.
+
+    // Create the grid that A* will search through
     Grid grid = new Grid(
         tree,
-        new Rectangle(0, 0, WorldSize, WorldSize),
+        new Rectangle(
+            0,
+            0,
+            WorldSize,
+            WorldSize
+        ),
         cellSize: CellSize,
         droneAltitudeMeters: req.AltitudeMeters,
         safetyBufferMeters: SafetyBufferMeters
     );
 
+
+    // Get the start point sent from the GUI
     Point start = new Point(
         req.Start.X,
         req.Start.Y
     );
 
+
+    // Get the goal point sent from the GUI
     Point goal = new Point(
         req.Goal.X,
         req.Goal.Y
     );
 
-    // Find the raw A* path.
+
+    // Use A* to calculate a path around the obstacles
     List<Point> rawPath = AStar.FindPath(
         grid,
         start,
         goal
     );
 
-    // No valid path was found.
+
+    // If A* could not find a safe route
     if (rawPath.Count == 0)
     {
-        return Results.Ok(new PlanResponse
-        {
-            Success = false,
-            Message = "No path found — obstacles block all routes",
-            Waypoints = new List<PointDto>(),
-            RawWaypointCount = 0
-        });
+        return Results.Ok(
+            new PlanResponse
+            {
+                Success = false,
+
+                Message =
+                    "No path found — obstacles block all routes",
+
+                Waypoints =
+                    new List<PointDto>(),
+
+                RawWaypointCount = 0
+            }
+        );
     }
 
-    // Remove unnecessary waypoints from the raw path.
+
+    // A* can create more points than we actually need
+    // This removes unnecessary waypoints and smooths the path
     List<Point> smoothed = PathSmoother.Smooth(
         grid,
         rawPath
     );
 
-    return Results.Ok(new PlanResponse
-    {
-        Success = true,
-        Message =
-            $"Planned {smoothed.Count} waypoints (raw {rawPath.Count})",
 
-        Waypoints = smoothed
-            .Select(p => new PointDto
-            {
-                X = p.X,
-                Y = p.Y
-            })
-            .ToList(),
+    // Send the final path back to the GUI
+    return Results.Ok(
+        new PlanResponse
+        {
+            Success = true,
 
-        RawWaypointCount = rawPath.Count
-    });
+            Message =
+                $"Planned {smoothed.Count} waypoints " +
+                $"(raw {rawPath.Count})",
+
+            Waypoints = smoothed
+                .Select(p =>
+                    new PointDto
+                    {
+                        X = p.X,
+                        Y = p.Y
+                    }
+                )
+                .ToList(),
+
+            RawWaypointCount =
+                rawPath.Count
+        }
+    );
 });
 
 
+
 // ============================================================
-// TELEMETRY - AVAILABLE COM PORTS
+// TELEMETRY COM PORTS
 // ============================================================
 
-// Ask the Python bridge which Windows COM ports currently exist.
+// The GUI calls this endpoint to get the COM ports
+// detected by the Python bridge.
 //
-// Browser
-//    ↓
-// Program.cs
-//    ↓
-// DroneClient.cs
-//    ↓
-// Python bridge
-//    ↓
-// pyserial
-//    ↓
-// Windows COM ports
-app.MapGet("/api/telemetry/ports", (DroneClient client) =>
+// Communication:
+// GUI -> Program.cs -> DroneClient.cs -> Python -> Windows
+app.MapGet(
+    "/api/telemetry/ports",
+    (DroneClient client) =>
 {
     try
     {
-        // This only connects C# to the Python bridge.
-        // It does NOT mean that a Pixhawk is connected.
+
+        // Connect C# to the Python bridge if needed
+        //
+        // This does NOT mean the Pixhawk is connected.
+        // It only means C# can communicate with Python.
         if (!client.IsConnected)
         {
             client.Connect();
         }
 
-        // Ask Python for the current serial-port list.
-        DroneResponse response = client.GetPorts();
 
-        if (!response.IsOk || !response.Data.HasValue)
+        // Ask Python for the available Windows COM ports
+        DroneResponse response =
+            client.GetPorts();
+
+
+        // Make sure Python returned valid data
+        if (
+            !response.IsOk ||
+            !response.Data.HasValue
+        )
         {
-            return Results.Ok(new
-            {
-                success = false,
-                message = response.Message,
-                ports = Array.Empty<object>()
-            });
+            return Results.Ok(
+                new
+                {
+                    success = false,
+
+                    message =
+                        response.Message,
+
+                    ports =
+                        Array.Empty<object>()
+                }
+            );
         }
 
-        JsonElement data = response.Data.Value;
 
-        // Make sure Python actually returned a "ports" array.
-        if (!data.TryGetProperty(
+        // Get the JSON data returned from Python
+        JsonElement data =
+            response.Data.Value;
+
+
+        // Make sure the response actually contains a ports list
+        if (
+            !data.TryGetProperty(
                 "ports",
-                out JsonElement portsElement))
+                out JsonElement portsElement
+            )
+        )
         {
-            return Results.Ok(new
-            {
-                success = false,
-                message =
-                    "Bridge response did not contain a ports list",
-                ports = Array.Empty<object>()
-            });
+            return Results.Ok(
+                new
+                {
+                    success = false,
+
+                    message =
+                        "Bridge response did not contain a ports list",
+
+                    ports =
+                        Array.Empty<object>()
+                }
+            );
         }
 
-        // Convert Python's JSON array into normal C# objects.
-        // This makes the response easy for JavaScript to use.
-        var ports = portsElement
-            .EnumerateArray()
-            .Select(port => new
+
+        // Convert the JSON port information into C# objects
+        // that can easily be sent back to JavaScript
+        var ports =
+            portsElement
+                .EnumerateArray()
+                .Select(port =>
+                    new
+                    {
+                        device =
+                            port
+                                .GetProperty("device")
+                                .GetString(),
+
+                        description =
+                            port
+                                .GetProperty("description")
+                                .GetString()
+                    }
+                )
+                .ToList();
+
+
+        // Send the COM-port list back to the GUI
+        return Results.Ok(
+            new
             {
-                device =
-                    port.GetProperty("device").GetString(),
-
-                description =
-                    port.GetProperty("description").GetString()
-            })
-            .ToList();
-
-        return Results.Ok(new
-        {
-            success = true,
-            ports
-        });
+                success = true,
+                ports
+            }
+        );
     }
+
     catch (Exception ex)
     {
-        return Results.Ok(new
-        {
-            success = false,
-            message = ex.Message,
-            ports = Array.Empty<object>()
-        });
+
+        // If the Python bridge is not running or another error occurs
+        return Results.Ok(
+            new
+            {
+                success = false,
+                message = ex.Message,
+                ports = Array.Empty<object>()
+            }
+        );
     }
 });
+
 
 
 // ============================================================
 // FLY MISSION
 // ============================================================
 
-// Execute the path created by the planner.
-//
-// NOTE:
-// The Python bridge currently decides how these MAVLink commands
-// are sent to the flight controller.
-app.MapPost("/api/fly", async (FlyRequest req, DroneClient client) =>
+// Receives the planned waypoints from the GUI
+// and sends the mission commands through DroneClient
+app.MapPost(
+    "/api/fly",
+    async (
+        FlyRequest req,
+        DroneClient client
+    ) =>
 {
-    if (req.Waypoints == null || req.Waypoints.Count < 2)
+
+    // A mission needs at least a start and goal point
+    if (
+        req.Waypoints == null ||
+        req.Waypoints.Count < 2
+    )
     {
-        return Results.BadRequest(new
-        {
-            error = "Need at least 2 waypoints (start + goal)"
-        });
+        return Results.BadRequest(
+            new
+            {
+                error =
+                    "Need at least 2 waypoints (start + goal)"
+            }
+        );
     }
+
 
     try
     {
-        // Connect C# to Python if necessary.
+
+        // Connect C# to Python if it is not already connected
         if (!client.IsConnected)
         {
             client.Connect();
         }
 
-        // Run the mission in the background so the HTTP request
-        // does not remain open for the entire flight.
+
+        // Run the mission in the background
+        // This prevents the website request from staying open
+        // during the entire flight
         _ = Task.Run(() =>
         {
             try
             {
-                // Establish the starting location.
+
+                // Tell the Python bridge to save the home position
                 client.SetHome();
 
-                // Arm the vehicle.
+
+                // Arm the drone
                 client.Arm();
 
-                // Take off to the selected cruise altitude.
-                client.Takeoff(req.AltitudeMeters);
 
-                // The first waypoint is treated as our local origin.
-                PointDto startPoint = req.Waypoints[0];
+                // Take off to the altitude selected in the GUI
+                client.Takeoff(
+                    req.AltitudeMeters
+                );
 
-                // Send every remaining waypoint to the Python bridge.
-                for (int i = 1; i < req.Waypoints.Count; i++)
+
+                // Treat the first waypoint as the local starting point
+                PointDto startPoint =
+                    req.Waypoints[0];
+
+
+                // Send the rest of the waypoints one at a time
+                for (
+                    int i = 1;
+                    i < req.Waypoints.Count;
+                    i++
+                )
                 {
-                    PointDto p = req.Waypoints[i];
+                    PointDto p =
+                        req.Waypoints[i];
 
+
+                    // Find how far east/west the waypoint is
+                    // from the starting position
                     double xOffset =
-                        p.X - startPoint.X;
+                        p.X -
+                        startPoint.X;
 
+
+                    // Find how far north/south the waypoint is
+                    // from the starting position
                     double yOffset =
-                        p.Y - startPoint.Y;
+                        p.Y -
+                        startPoint.Y;
 
+
+                    // Send the local waypoint to Python
                     client.GotoLocal(
                         xOffset,
                         yOffset,
@@ -279,25 +412,36 @@ app.MapPost("/api/fly", async (FlyRequest req, DroneClient client) =>
                     );
                 }
 
-                // Land after completing all waypoints.
+
+                // Land after all waypoints have been completed
                 client.Land();
             }
+
             catch (Exception ex)
             {
+
+                // Print mission errors in the server terminal
                 Console.WriteLine(
                     $"[mission] Error: {ex.Message}"
                 );
             }
         });
 
-        return Results.Ok(new
-        {
-            status = "started",
-            waypoints = req.Waypoints.Count
-        });
+
+        // Tell the GUI that the mission was started
+        return Results.Ok(
+            new
+            {
+                status = "started",
+                waypoints =
+                    req.Waypoints.Count
+            }
+        );
     }
+
     catch (Exception ex)
     {
+
         return Results.Problem(
             $"Could not start mission: {ex.Message}"
         );
@@ -305,30 +449,48 @@ app.MapPost("/api/fly", async (FlyRequest req, DroneClient client) =>
 });
 
 
+
 // ============================================================
-// ABORT / LAND NOW
+// ABORT / LAND
 // ============================================================
 
-// Immediately request LAND from the Python bridge.
-app.MapPost("/api/abort", (DroneClient client) =>
+// The GUI calls this endpoint when the Abort button is pressed
+// It sends a LAND command through the Python bridge
+app.MapPost(
+    "/api/abort",
+    (DroneClient client) =>
 {
     try
     {
+
+        // Make sure C# is connected to Python
         if (!client.IsConnected)
         {
             client.Connect();
         }
 
-        DroneResponse response = client.Land();
 
-        return Results.Ok(new
-        {
-            status = response.Status,
-            message = response.Message
-        });
+        // Send the LAND command
+        DroneResponse response =
+            client.Land();
+
+
+        // Send the result back to the GUI
+        return Results.Ok(
+            new
+            {
+                status =
+                    response.Status,
+
+                message =
+                    response.Message
+            }
+        );
     }
+
     catch (Exception ex)
     {
+
         return Results.Problem(
             $"Abort failed: {ex.Message}"
         );
@@ -336,64 +498,97 @@ app.MapPost("/api/abort", (DroneClient client) =>
 });
 
 
+
 // ============================================================
-// DRONE STATUS / POSITION
+// DRONE POSITION
 // ============================================================
 
-// Current temporary home location used by Sergio's SITL setup.
+// Temporary home location from the SITL simulator
 //
-// IMPORTANT:
-// These coordinates are still the Canberra SITL location.
-// Later we will replace this with the real Pixhawk/home GPS
-// instead of keeping it hard-coded.
-const double HomeLat = -35.363262;
-const double HomeLon = 149.165237;
-const double EarthRadiusM = 6_378_137.0;
+// These coordinates will eventually be replaced with the
+// actual GPS/home position received from the Pixhawk.
+const double HomeLat =
+    -35.363262;
+
+const double HomeLon =
+    149.165237;
+
+const double EarthRadiusM =
+    6_378_137.0;
 
 
-// The website polls this endpoint to get the drone's position.
-app.MapGet("/api/status", (DroneClient client) =>
+// The GUI calls this endpoint every second
+// to get the drone's current position
+app.MapGet(
+    "/api/status",
+    (DroneClient client) =>
 {
     try
     {
+
+        // Make sure C# can communicate with Python
         if (!client.IsConnected)
         {
             client.Connect();
         }
 
+
+        // Ask Python for the latest drone position
         DroneResponse response =
             client.GetPosition();
 
-        // No Pixhawk / position available yet.
-        if (!response.IsOk || !response.Data.HasValue)
+
+        // If Python does not have a valid position yet
+        if (
+            !response.IsOk ||
+            !response.Data.HasValue
+        )
         {
-            return Results.Ok(new
-            {
-                connected = false,
-                message = response.Message
-            });
+            return Results.Ok(
+                new
+                {
+                    connected = false,
+                    message =
+                        response.Message
+                }
+            );
         }
 
+
+        // Get the position information returned from Python
         JsonElement data =
             response.Data.Value;
 
+
         double lat =
-            data.GetProperty("lat").GetDouble();
+            data
+                .GetProperty("lat")
+                .GetDouble();
+
 
         double lon =
-            data.GetProperty("lon").GetDouble();
+            data
+                .GetProperty("lon")
+                .GetDouble();
+
 
         double altitude =
-            data.GetProperty("altitude").GetDouble();
+            data
+                .GetProperty("altitude")
+                .GetDouble();
 
-        // Convert GPS coordinates into the local X/Y coordinate
-        // system used by the map and path planner.
+
+        // Convert GPS latitude into meters north/south
+        // from the home position
         double yMeters =
             (lat - HomeLat)
             * Math.PI
             / 180.0
             * EarthRadiusM;
 
+
+        // Convert GPS longitude into meters east/west
+        // from the home position
         double xMeters =
             (lon - HomeLon)
             * Math.PI
@@ -405,49 +600,65 @@ app.MapGet("/api/status", (DroneClient client) =>
                 / 180.0
             );
 
-        return Results.Ok(new
-        {
-            connected = true,
 
-            lat,
-            lon,
-            altitude,
+        // Send both GPS and local coordinates to the GUI
+        return Results.Ok(
+            new
+            {
+                connected = true,
 
-            // Local frame:
-            // X = meters east of home
-            // Y = meters north of home
-            xLocal = xMeters,
-            yLocal = yMeters
-        });
+                lat,
+                lon,
+                altitude,
+
+                // X = meters east/west of home
+                // Y = meters north/south of home
+                xLocal = xMeters,
+                yLocal = yMeters
+            }
+        );
     }
+
     catch (Exception ex)
     {
-        return Results.Ok(new
-        {
-            connected = false,
-            message = ex.Message
-        });
+
+        // If the bridge or drone is unavailable
+        return Results.Ok(
+            new
+            {
+                connected = false,
+                message = ex.Message
+            }
+        );
     }
 });
+
 
 
 // ============================================================
 // HEALTH CHECK
 // ============================================================
 
-// Simple endpoint used to verify that the ASP.NET server itself
-// is running without sending anything to the drone.
-app.MapGet("/api/health", () =>
-    Results.Ok(new
-    {
-        status = "ok",
-        timestamp = DateTime.UtcNow
-    })
+// Simple test to make sure the ASP.NET server is running
+// This does not send anything to the drone
+app.MapGet(
+    "/api/health",
+    () =>
+        Results.Ok(
+            new
+            {
+                status = "ok",
+                timestamp =
+                    DateTime.UtcNow
+            }
+        )
 );
+
 
 
 // ============================================================
 // START SERVER
 // ============================================================
 
+// Starts the ASP.NET web server
 app.Run();
