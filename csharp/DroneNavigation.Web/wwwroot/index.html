@@ -1,11 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Drone Mission Planner</title>
+  <title>VENATOR · PX4 Demo</title>
+
+  <!-- Leaflet is used to display the interactive map -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
   <style>
+
+    /* ---------- Main colors ---------- */
+
     :root {
       --bg: #1a1d24;
       --panel: #22262e;
@@ -16,32 +23,47 @@
       --danger: #e57373;
       --warn: #f6c452;
     }
-    * { box-sizing: border-box; }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    /* Main page layout */
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg);
       color: var(--text);
       display: grid;
-      grid-template-columns: 320px 1fr;
+
+      /* Keeps the sidebar from getting too small or too large */
+      grid-template-columns: clamp(300px, 28vw, 390px) 1fr;
+
       height: 100vh;
     }
+
+    /* ---------- Sidebar ---------- */
+
     .sidebar {
       background: var(--panel);
       border-right: 1px solid var(--border);
       padding: 16px;
       overflow-y: auto;
     }
+
     .sidebar h1 {
       font-size: 18px;
       margin: 0 0 16px;
       color: var(--accent);
     }
+
+    /* Each group of controls in the sidebar */
     .section {
       border-top: 1px solid var(--border);
       padding-top: 12px;
       margin-top: 12px;
     }
+
     .section h2 {
       font-size: 12px;
       text-transform: uppercase;
@@ -49,6 +71,75 @@
       color: var(--muted);
       margin: 0 0 8px;
     }
+
+    .emergency { position: sticky; top: -16px; z-index: 500; background: var(--panel); padding: 8px 0; }
+    input[type=number], select { width: 100%; padding: 8px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 5px; margin-bottom: 8px; }
+    input[type=checkbox] { width: auto; }
+    summary { cursor: pointer; color: var(--accent); padding: 10px 0; }
+
+    :root { --bg:#101923; --panel:#17232f; --border:#2a3a49; --accent:#64dcc2; --text:#edf4f8; --muted:#a4b6c5; }
+    .sidebar { padding:20px; }
+    .brand { display:flex; gap:12px; align-items:center; margin-bottom:18px; }
+    .brand h1 { margin:0; letter-spacing:2px; font-size:20px; }
+    .brand-mark { font-size:25px; font-weight:800; color:var(--accent); padding:8px 13px; background:#233e46; border-radius:10px; }
+    .subtitle { color:var(--muted); font-size:12px; }
+    .badge { margin-left:auto; border:1px solid var(--border); border-radius:20px; padding:5px 9px; font-size:11px; color:var(--muted); }
+    .badge.connected { color:var(--accent); border-color:#357967; }
+    .section { margin-top:18px; padding-top:18px; }
+    .section h2 { font-size:12px; margin-bottom:12px; }
+    h3 { font-size:16px; margin:14px 0 8px; }
+    p { font-size:13px; line-height:1.55; color:var(--muted); }
+    .test-tabs { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .test-tabs button { font-size:12px; }
+    .telemetry-cards { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0; }
+    .telemetry-cards div { padding:12px; background:var(--bg); border:1px solid var(--border); border-radius:9px; }
+    .telemetry-cards small { display:block; font-size:10px; color:var(--muted); margin-bottom:5px; }
+    .telemetry-cards strong { font-size:15px; font-weight:600; }
+    .confirm-box { display:flex; align-items:flex-start; gap:9px; padding:12px; border:1px solid var(--border); background:var(--bg); border-radius:8px; font-size:12px; line-height:1.5; margin:12px 0; }
+    .confirm-box input { margin-top:4px; flex-shrink:0; }
+    .helper { font-size:12px; padding:10px; border-left:2px solid #b6c8d4; background:var(--bg); }
+    .result { font-size:13px; padding:12px; margin:12px 0; border:1px solid var(--border); border-radius:8px; line-height:1.5; }
+    .result.success { border-color:#357967; color:var(--accent); }
+    .result.error { border-color:var(--danger); color:#ffc0ba; }
+    .diagnostics { margin-top:16px; }
+    .diagnostics pre { overflow-wrap:anywhere; color:var(--muted); line-height:1.5; }
+    #map { position:relative; }
+    .map-message { position:absolute; z-index:450; top:50%; left:50%; transform:translate(-50%,-50%); width:min(360px,85%); background:#17232feb; border:1px solid var(--border); border-radius:16px; padding:26px; text-align:center; box-shadow:0 12px 40px #0004; pointer-events:none; }
+    .map-message h2 { font-size:18px; margin:12px 0; }
+    .map-symbol { font-size:32px; color:var(--accent); }
+    [hidden] { display:none !important; }
+    @media(max-width:700px) { .emergency { position:sticky; top:0; } #map { min-height:350px; } }
+
+    #indoor-stage { overflow-y:auto; padding:36px; background:radial-gradient(ellipse at top right,#1d3f47 0%,#101923 60%); }
+    .stage-header h2 { font-size:30px; margin:8px 0; letter-spacing:-.7px; }
+    .eyebrow { color:var(--accent); font-size:11px; letter-spacing:2px; }
+    .sensor-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin-top:28px; }
+    .sensor-card { min-width:0; background:#17232fe8; border:1px solid var(--border); border-radius:16px; padding:22px; }
+    .sensor-card h3 { margin:10px 0 20px; }
+    .sensor-card small { color:var(--muted); font-size:11px; line-height:1.5; display:block; }
+    .attitude-dial { position:relative; overflow:hidden; height:156px; width:156px; border-radius:50%; border:4px solid #425365; margin:10px auto; background:var(--bg); }
+    #attitude-surface { position:absolute; inset:-100px; background:linear-gradient(#37678a 50%,#6b5346 50%); transition:transform .3s; }
+    .attitude-cross { position:absolute; top:62px; width:100%; text-align:center; font-size:24px; color:#ffe091; }
+    .heading-dial { position:relative; width:156px; height:156px; margin:10px auto; border:2px solid var(--border); border-radius:50%; text-align:center; }
+    .heading-dial span { display:block; padding-top:10px; color:var(--muted); font-size:11px; }
+    #heading-arrow { font-size:65px; color:var(--accent); height:100px; transition:transform .3s; }
+    .large-reading { font-size:46px; color:var(--accent); min-height:94px; display:flex; align-items:center; justify-content:center; font-variant-numeric:tabular-nums; }
+    .range-secondary { text-align:center; color:var(--muted); margin:-8px 0 12px; font-size:13px; }
+    .range-bar { height:10px; background:#0e1219; border:1px solid var(--border); border-radius:99px; overflow:hidden; margin:12px 0 14px; }
+    .range-bar-fill { width:0; height:100%; background:var(--accent); transition:width .25s ease; }
+    .range-details { display:grid; grid-template-columns:1fr 1fr; gap:7px 12px; margin:12px 0 14px; font-size:12px; }
+    .range-details div { display:flex; justify-content:space-between; gap:8px; color:var(--muted); }
+    .range-details strong { color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
+    .range-status { display:inline-block; padding:3px 7px; border-radius:10px; font-size:10px; font-weight:700; letter-spacing:.5px; background:#233e46; color:var(--accent); }
+    .range-status.warn { color:#ffe091; background:#4b4325; }
+    .range-status.bad { color:#ffc0ba; background:#512b2b; }
+    .demo-tools { margin-top:24px; padding:24px; border:1px solid var(--border); border-radius:16px; background:#17232fe8; }
+    .demo-tool-buttons { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+    .future-map { margin:0 0 28px; } .future-map #map { height:420px; }
+    @media(max-width:1100px) { .sensor-grid { grid-template-columns:1fr; } .sensor-card { display:block; } #indoor-stage { padding:22px; } }
+    @media(max-width:700px) { body { display:block; height:auto; } .sidebar { overflow:visible; } #indoor-stage { overflow:visible; } }
+    /* ---------- Buttons ---------- */
+
     button {
       width: 100%;
       padding: 10px;
@@ -61,20 +152,57 @@
       cursor: pointer;
       font-size: 14px;
     }
-    button:hover { filter: brightness(1.1); }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
-    button.secondary { background: var(--border); color: var(--text); }
-    button.danger { background: var(--danger); color: #fff; }
-    button.tool { background: var(--border); color: var(--text); }
-    button.tool.active { background: var(--warn); color: #0e1219; }
+
+    button:hover {
+      filter: brightness(1.1);
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    button.danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    button.tool {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    /* Shows which map tool is currently selected */
+    button.tool.active {
+      background: var(--warn);
+      color: #0e1219;
+    }
+
+    /* ---------- Labels and sliders ---------- */
+
     label {
       display: block;
       font-size: 13px;
       color: var(--muted);
       margin: 8px 0 4px;
     }
-    input[type="range"] { width: 100%; }
-    .value { color: var(--text); font-variant-numeric: tabular-nums; }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .value {
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------- Log window ---------- */
+
     #log {
       font-family: ui-monospace, "SF Mono", Menlo, monospace;
       font-size: 11px;
@@ -86,395 +214,1734 @@
       overflow-y: auto;
       white-space: pre-wrap;
     }
-    #map { width: 100%; height: 100vh; }
-    .leaflet-container { background: #0e1219; }
+
+    /* ---------- Map ---------- */
+
+    #map {
+      width: 100%;
+      height: 100vh;
+    }
+
+    .leaflet-container {
+      background: #0e1219;
+    }
+
+    /* ---------- Telemetry controls ---------- */
+
+    #telemetry-port {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 6px;
+      background: #0e1219;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .telemetry-status {
+      margin-top: 6px;
+      font-size: 12px;
+    }
+
+    .telemetry-status div {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 5px;
+    }
+
+    .telemetry-status span:first-child {
+      color: var(--muted);
+    }
+
+    /* ---------- Tablet layout ---------- */
+    /* Makes the sidebar smaller on medium-sized screens */
+
+    @media (max-width: 1000px) {
+
+      body {
+        grid-template-columns: 220px 1fr;
+      }
+
+      .sidebar {
+        padding: 12px;
+      }
+
+      .sidebar h1 {
+        font-size: 16px;
+        margin-bottom: 12px;
+      }
+
+      .section {
+        padding-top: 10px;
+        margin-top: 10px;
+      }
+
+      button {
+        padding: 8px;
+        font-size: 13px;
+      }
+
+      #log {
+        height: 110px;
+      }
+    }
+
+    /* ---------- Mobile layout ---------- */
+    /* Puts the map above the controls on smaller screens */
+
+    @media (max-width: 600px) {
+
+      body {
+        grid-template-columns: 1fr;
+        grid-template-rows: 70vh auto;
+        height: auto;
+        min-height: 100vh;
+      }
+
+      #map {
+        grid-row: 1;
+        width: 100%;
+        height: 70vh;
+        min-height: 400px;
+      }
+
+      .sidebar {
+        grid-row: 2;
+        width: 100%;
+        padding: 10px;
+        border-right: none;
+        border-top: 1px solid var(--border);
+      }
+
+      .sidebar h1 {
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+
+      .section {
+        padding-top: 8px;
+        margin-top: 8px;
+      }
+
+      button {
+        /* Keeps buttons large enough to use on a touchscreen */
+        padding: 10px;
+        font-size: 14px;
+      }
+
+      #log {
+        height: 100px;
+      }
+    }
+
   </style>
 </head>
+
+
 <body>
+
+  <!-- =====================================================
+       SIDEBAR
+       Contains the controls used to set up and fly a mission
+       ===================================================== -->
+
   <aside class="sidebar">
-    <h1>🚁 Drone Mission Planner</h1>
+
+    <div class="brand"><span class="brand-mark">V</span><div><h1>VENATOR</h1><span class="subtitle">Vehicle control</span></div><span id="link-badge" class="badge">Offline</span></div>
+
+
+<div class="emergency"><button class="danger" id="btn-abort" disabled>
+        Abort · land now
+      </button><button id="btn-disarm" class="secondary" disabled>Disarm · on ground only</button></div>
+    <!-- ---------- Telemetry ---------- -->
+    <!-- Lets the user select the COM port for the SiK radio -->
+
+    <div class="section">
+
+      <h2>1 · Connect your radio</h2>
+
+      <label for="telemetry-port">
+        Radio port
+      </label>
+
+      <select id="telemetry-port">
+        <option value="">Loading ports...</option>
+      </select>
+
+      <!-- Checks Windows again for available COM ports -->
+      <button id="btn-refresh-ports" class="secondary">
+        Scan ports
+      </button>
+
+      <!-- Will eventually connect the selected radio to the bridge -->
+      <button id="btn-connect-telemetry" disabled>
+        Connect
+      </button>
+
+
+      <label for="telemetry-baud">Baud rate</label>
+      <select id="telemetry-baud"><option>57600</option><option>115200</option><option>38400</option><option>19200</option><option>9600</option></select>
+      <button id="btn-disconnect-telemetry" class="secondary" disabled>Disconnect</button>
+      <!-- Shows radio and Pixhawk communication status -->
+      <div class="telemetry-status">
+
+        <div>
+          <span>Radio</span>
+          <span id="radio-status">🔴 Disconnected</span>
+        </div>
+
+        <div>
+          <span>Pixhawk</span>
+          <span id="pixhawk-status">🔴 No heartbeat</span>
+        </div>
+
+      </div>
+
+    </div>
+
+
+
+    <div class="section">
+      <h2>2 · Indoor demo</h2><div hidden class="test-tabs" role="tablist" aria-label="Test type"><button id="tab-bench" role="tab" aria-selected="true">Indoor demo</button><button id="tab-flight" hidden class="secondary" role="tab" aria-selected="false">Outdoor flight</button></div>
+
+      <div class="telemetry-cards">
+        <div><small>Flight mode</small><strong id="tile-mode">Waiting</strong></div>
+        <div><small>Motors</small><strong id="tile-motors">Unknown</strong></div>
+        <div><small>Floor distance</small><strong id="tile-height">—</strong></div>
+        <div><small>Battery</small><strong id="tile-battery">—</strong></div>
+      </div>
+      <label for="flight-mode-select">Flight mode</label>
+      <select id="flight-mode-select"><option value="stabilized">Stabilized · stick input required</option><option value="altitude">Altitude · stick input required</option><option value="position">Position · position + stick input required</option><option value="hold">Hold · valid position required</option><option value="return">Return · valid home + position required</option><option value="offboard">Offboard</option></select>
+      <button id="btn-set-mode" disabled>Apply mode</button><p class="helper">Apply changes only the mode. Offboard continuously commands zero thrust for bench use. Arm, Motor Test and Disarm are separate; this does not enable takeoff.</p>
+      <section id="bench-panel" role="tabpanel" aria-labelledby="tab-bench">
+        <h3>Motor check · props off</h3>
+        <p>Arm, remain armed two seconds longer, then disarm automatically. GPS is not required for this test. PX4 can still reject arming if its checks fail.</p>
+        <label class="confirm-box"><input type="checkbox" id="bench-confirmed"><span>All propellers are removed. The vehicle is secured and everyone is clear of the motors.</span></label>
+        <button id="btn-motor-test" disabled>Run motor test · +2 seconds</button>
+
+        <button id="btn-health-check" class="secondary">Show PX4 health messages</button>
+        <button id="btn-indoor-arm" disabled>Arm · props off</button>
+        <button id="btn-indoor-disarm" class="secondary" disabled>Disarm · on ground</button>
+        <label for="indoor-altitude">Takeoff altitude (m)</label><input id="indoor-altitude" type="number" min="1" max="5" step="0.5" value="1">
+        <button id="btn-indoor-takeoff" disabled>Take off · position required</button>
+        <p class="helper">Props-off Arm stays armed until you disarm. Takeoff needs valid position and preflight readiness; a downward LiDAR alone cannot provide position holding.</p>
+        <p id="bench-help" class="helper">Connect the radio to begin.</p>
+      </section>
+      <p id="vehicle-note" class="helper" hidden></p>
+      <div id="action-result" class="result" role="status" aria-live="polite" hidden></div>
+      <details class="diagnostics"><summary>Live telemetry details</summary>
+      <pre id="live-telemetry" style="white-space:pre-wrap;font-size:12px">Waiting for telemetry</pre>
+      </details><section id="flight-panel" role="tabpanel" aria-labelledby="tab-flight" hidden><h3>Flight controls</h3><p>For outdoor GPS flight. Confirm each action and use a clear operating area with manual takeover available.</p><p id="preflight-blockers" class="helper">Waiting for flight readiness.</p>
+      <label><input type="checkbox" id="operator-confirmed"> I have checked the vehicle and test area, and have manual takeover available.</label>
+      <button id="btn-demo-enable" disabled>Unlock demo controls</button>
+      <label for="demo-altitude">Demo altitude (1–5 m; takeoff above ground, Go above PX4 home)</label>
+      <input id="demo-altitude" type="number" min="1" max="5" step="0.5" value="2">
+      <button id="btn-arm" disabled>Arm</button>
+
+      <button id="btn-takeoff" disabled>Take off</button>
+      <button id="btn-hold" disabled>Hover / Hold</button>
+      <button id="btn-select-target" class="secondary" disabled>Select destination on map</button>
+      <p id="demo-target">No destination selected (maximum 30 m from home)</p><p>Go follows a direct route. Planner obstacles do not provide onboard collision avoidance.</p>
+      <button id="btn-goto" disabled>Go to selected destination</button>
+      <label for="demo-heading">Heading clockwise from North (0–360°)</label>
+      <input id="demo-heading" type="number" min="0" max="360" step="5" value="0">
+      <button id="btn-yaw" disabled>Rotate to heading</button>
+      <button id="btn-land" class="danger" disabled>Land</button>
+      <p class="helper">Land and Abort request landing; they do not stop motors in the air. Check telemetry to confirm each maneuver.</p></section>
+    </div>
+<details><summary>Path planner (preview)</summary>
+    <!-- ---------- Map tools ---------- -->
 
     <div class="section">
       <h2>Tool</h2>
-      <button class="tool active" id="tool-obstacle">Place obstacle</button>
-      <button class="tool" id="tool-start">Set start</button>
-      <button class="tool" id="tool-goal">Set goal</button>
-      <button class="tool" id="tool-area">Move planning area</button>
+
+      <button class="tool active" id="tool-obstacle">
+        Place obstacle
+      </button>
+
+      <button class="tool" id="tool-start">
+        Set start
+      </button>
+
+      <button class="tool" id="tool-goal">
+        Set goal
+      </button>
+
+      <button class="tool" id="tool-area">
+        Move planning area
+      </button>
     </div>
+
+
+    <!-- ---------- Obstacle settings ---------- -->
 
     <div class="section">
       <h2>Obstacle properties</h2>
-      <label>Radius: <span class="value" id="radius-value">8</span> m</label>
-      <input type="range" id="radius" min="3" max="20" value="8" step="1">
-      <label>Height: <span class="value" id="height-value">30</span> m</label>
-      <input type="range" id="height" min="0" max="50" value="30" step="1">
+
+      <label>
+        Radius:
+        <span class="value" id="radius-value">8</span> m
+      </label>
+
+      <input
+        type="range"
+        id="radius"
+        min="3"
+        max="20"
+        value="8"
+        step="1"
+      >
+
+      <label>
+        Height:
+        <span class="value" id="height-value">30</span> m
+      </label>
+
+      <input
+        type="range"
+        id="height"
+        min="0"
+        max="50"
+        value="30"
+        step="1"
+      >
     </div>
+
+
+    <!-- ---------- Flight settings ---------- -->
 
     <div class="section">
       <h2>Flight</h2>
-      <label>Cruise altitude: <span class="value" id="altitude-value">20</span> m</label>
-      <input type="range" id="altitude" min="5" max="50" value="20" step="1">
+
+      <label>
+        Planner altitude:
+        <span class="value" id="altitude-value">20</span> m
+      </label>
+
+      <input
+        type="range"
+        id="altitude"
+        min="5"
+        max="50"
+        value="20"
+        step="1"
+      >
     </div>
 
-    <div class="section">
-      <h2>Actions</h2>
-      <button id="btn-plan">Plan path</button>
-      <button id="btn-fly" disabled>Fly mission</button>
-      <button class="danger" id="btn-abort">Abort (land now)</button>
-      <button class="secondary" id="btn-clear">Clear all obstacles</button>
-    </div>
+
+
+</details>
+    <!-- ---------- Mission buttons ---------- -->
 
     <div class="section">
+
+      <h2>Planner preview</h2>
+
+      <button id="btn-plan">
+        Plan path
+      </button>
+
+      <button id="btn-fly" disabled hidden>Planner preview only</button>
+
+
+
+      <button class="secondary" id="btn-clear">
+        Clear all obstacles
+      </button>
+
+    </div>
+
+
+    <!-- ---------- Message log ---------- -->
+
+    <div class="section">
+
       <h2>Log</h2>
+
       <div id="log"></div>
+
     </div>
+
   </aside>
 
-  <main id="map"></main>
 
+  <!-- Leaflet places the interactive map inside this element -->
+  <main id="indoor-stage"><details class="future-map" open><summary>Map &amp; planner</summary><div id="map"><div id="map-waiting" class="map-message"><span class="map-symbol">◎</span><h2>Waiting for live position</h2><p>The map centers on your vehicle when a valid position arrives.</p><p>You can run a props-off motor test without GPS.</p></div></div></details>
+<header class="stage-header"><span class="eyebrow">LIVE INDOOR DEMO</span><h2>See the vehicle respond</h2><p>Read-only sensors update live. The motor check stays separate.</p></header>
+<div class="sensor-grid">
+  <section class="sensor-card"><span class="eyebrow">ATTITUDE</span><h3>Roll &amp; pitch</h3><div class="attitude-dial"><div id="attitude-surface"></div><div class="attitude-cross">┄ ━ ┄</div></div><p id="attitude-values">Waiting for attitude</p><small>With motors disarmed, gently tilt the secured vehicle.</small></section>
+  <section class="sensor-card">
+    <span class="eyebrow">DOWNWARD LIDAR</span>
+    <h3>Distance to the floor</h3>
+    <div id="range-reading" class="large-reading">—</div>
+    <div id="range-feet" class="range-secondary">Waiting for LiDAR</div>
+    <div class="range-bar"><div id="range-bar-fill" class="range-bar-fill"></div></div>
+    <div class="range-details">
+      <div><span>Status</span><strong id="range-status" class="range-status">WAITING</strong></div>
+      <div><span>Trend</span><strong id="range-rate">—</strong></div>
+      <div><span>Update</span><strong id="range-update-rate">—</strong></div>
+      <div><span>Age</span><strong id="range-age">—</strong></div>
+      <div><span>Signal</span><strong id="range-quality">—</strong></div>
+      <div><span>Max range</span><strong id="range-limits">—</strong></div>
+    </div>
+    <p id="range-help">Waiting for a valid downward range reading.</p>
+    <small>TFmini Plus on TELEM1. Read-only display from PX4 DISTANCE_SENSOR.</small>
+  </section>
+  <section class="sensor-card"><span class="eyebrow">HEADING</span><h3>Direction</h3><div class="heading-dial"><span>N</span><div id="heading-arrow">↑</div></div><p id="heading-reading">Waiting for heading</p><small>This display reads heading; it does not rotate the drone.</small></section>
+</div>
+<section class="demo-tools"><h3>Demo tools</h3><div class="demo-tool-buttons"><button id="btn-check-link">Check connection</button><button id="btn-capture-baseline" class="secondary">Capture baseline</button><button id="btn-clear-baseline" class="secondary" disabled>Clear baseline</button><button id="btn-save-telemetry" class="secondary">Save telemetry</button></div><p id="baseline-reading">Capture a baseline to compare tilt, heading and floor distance.</p><div id="link-result" role="status" aria-live="polite"></div></section>
+</main>
+
+
+  <!-- Leaflet JavaScript library -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    // ---------- World configuration ----------
-    // Local frame: 100m x 100m square. The world coordinate (0,0) maps to the
-    // southwest corner of the planning boundary. The boundary itself can move
-    // independently of where SITL is actually flying.
-    const HOME_LAT = -35.363262;
-    const HOME_LON = 149.165237;
-    const WORLD_SIZE = 100;
-    const EARTH_RADIUS_M = 6378137;
-    const API_BASE = "";  // same origin
 
-    // Boundary origin in world meters from HOME. When the user moves the boundary,
-    // these change. The "world" coordinate system (where obstacles, start, goal
-    // live) stays a 100x100 grid; the boundary origin maps grid (0,0) to a
-    // specific GPS point.
+
+  <script>
+
+    // ============================================================
+    // MAP SETTINGS
+    // ============================================================
+
+    // Planning origin supplied by live telemetry; no default geographic home.
+    let HOME_LAT = null;
+    let HOME_LON = null;
+
+    // Planning area is 100 meters by 100 meters
+    const WORLD_SIZE = 100;
+
+    // Radius of Earth used for GPS conversions
+    const EARTH_RADIUS_M = 6378137;
+
+    // API is running from the same server as the website
+    const API_BASE = "";
+
+
+    // These values move the planning boundary around the map
     let boundaryOriginX = 0;
     let boundaryOriginY = 0;
 
-    // ---------- Coordinate conversions ----------
-    // World (meters in the planning grid, with (0,0) at SW corner of boundary)
-    // to GPS (lat/lon). The boundary origin can shift, so we add it in.
+
+    // ============================================================
+    // COORDINATE CONVERSIONS
+    // ============================================================
+
+    // Converts local x/y coordinates in meters into GPS coordinates
     function worldToLatLon(x, y) {
+
       const effectiveX = x + boundaryOriginX;
       const effectiveY = y + boundaryOriginY;
-      const lat = HOME_LAT + (effectiveY / EARTH_RADIUS_M) * (180 / Math.PI);
-      const lon = HOME_LON + (effectiveX / EARTH_RADIUS_M) * (180 / Math.PI) / Math.cos(HOME_LAT * Math.PI / 180);
+
+      const lat =
+        HOME_LAT +
+        (effectiveY / EARTH_RADIUS_M) *
+        (180 / Math.PI);
+
+      const lon =
+        HOME_LON +
+        (effectiveX / EARTH_RADIUS_M) *
+        (180 / Math.PI) /
+        Math.cos(HOME_LAT * Math.PI / 180);
+
       return [lat, lon];
     }
+
+
+    // Converts GPS coordinates back into local x/y coordinates
     function latLonToWorld(lat, lon) {
-      const y = (lat - HOME_LAT) * (Math.PI / 180) * EARTH_RADIUS_M;
-      const x = (lon - HOME_LON) * (Math.PI / 180) * EARTH_RADIUS_M * Math.cos(HOME_LAT * Math.PI / 180);
-      return { x: x - boundaryOriginX, y: y - boundaryOriginY };
+
+      const y =
+        (lat - HOME_LAT) *
+        (Math.PI / 180) *
+        EARTH_RADIUS_M;
+
+      const x =
+        (lon - HOME_LON) *
+        (Math.PI / 180) *
+        EARTH_RADIUS_M *
+        Math.cos(HOME_LAT * Math.PI / 180);
+
+      return {
+        x: x - boundaryOriginX,
+        y: y - boundaryOriginY
+      };
     }
 
-    // Convert "local meters from real GPS home" directly to lat/lon (no boundary
-    // offset). Used for drawing the live drone icon — which is at its actual GPS
-    // position, independent of whatever boundary the user has set up.
+
+    // Converts local drone position into GPS coordinates
+    // This does not use the movable planning-area offset
     function localMetersToLatLon(xMeters, yMeters) {
-      const lat = HOME_LAT + (yMeters / EARTH_RADIUS_M) * (180 / Math.PI);
-      const lon = HOME_LON + (xMeters / EARTH_RADIUS_M) * (180 / Math.PI) / Math.cos(HOME_LAT * Math.PI / 180);
+
+      const lat =
+        HOME_LAT +
+        (yMeters / EARTH_RADIUS_M) *
+        (180 / Math.PI);
+
+      const lon =
+        HOME_LON +
+        (xMeters / EARTH_RADIUS_M) *
+        (180 / Math.PI) /
+        Math.cos(HOME_LAT * Math.PI / 180);
+
       return [lat, lon];
     }
 
-    // ---------- State ----------
+
+    // ============================================================
+    // PROGRAM STATE
+    // ============================================================
+
+    // Currently selected map tool
     let activeTool = "obstacle";
+
+    // Stores all obstacles placed by the user
     let obstacles = [];
+
+    // Default start and goal locations
     let start = { x: 10, y: 50 };
     let goal = { x: 90, y: 50 };
+
+    // Stores the path returned by the path planner
     let plannedPath = null;
-    let droneTrail = [];           // array of [lat, lon] points the drone has visited
-    let lastDroneLatLon = null;    // most recent drone position
+
+    // Stores the actual positions the drone has traveled through
+    let droneTrail = [];
+
+    // Most recent position received from the drone
+    let lastDroneLatLon = null;
+
+
+    // Keeps track of the objects currently drawn on the map
     let mapObjects = {
+
       obstacleCircles: [],
+
       startMarker: null,
       goalMarker: null,
+
       plannedLine: null,
       boundaryRect: null,
+
       droneMarker: null,
       trailLine: null
     };
 
-    // ---------- Map setup ----------
-    const map = L.map("map").setView([HOME_LAT, HOME_LON], 18);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap"
-    }).addTo(map);
 
-    // ---------- UI helpers ----------
+    // ============================================================
+    // MAP SETUP
+    // ============================================================
+
+    // Creates the Leaflet map
+    const map =
+      L.map("map")
+       .fitWorld();
+
+
+    // Adds OpenStreetMap as the background map
+    L.tileLayer(
+      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      {
+        attribution: "© OpenStreetMap"
+      }
+    ).addTo(map);
+
+
+    // ============================================================
+    // USER INTERFACE HELPERS
+    // ============================================================
+
+    // Adds a timestamped message to the log window
     function log(msg) {
-      const el = document.getElementById("log");
-      const time = new Date().toLocaleTimeString();
-      el.textContent += `[${time}] ${msg}\n`;
-      el.scrollTop = el.scrollHeight;
+
+      const el =
+        document.getElementById("log");
+
+      const time =
+        new Date().toLocaleTimeString();
+
+      el.textContent +=
+        `[${time}] ${msg}\n`;
+
+      // Automatically scroll to newest message
+      el.scrollTop =
+        el.scrollHeight;
     }
 
+
+    // Changes which map tool is currently active
     function setTool(tool) {
+
       activeTool = tool;
-      ["obstacle", "start", "goal", "area"].forEach(t => {
-        document.getElementById("tool-" + t).classList.toggle("active", t === tool);
-      });
+
+      ["obstacle", "start", "goal", "area"]
+        .forEach(t => {
+
+          document
+            .getElementById("tool-" + t)
+            .classList
+            .toggle("active", t === tool);
+
+        });
     }
 
-    document.getElementById("tool-obstacle").onclick = () => setTool("obstacle");
-    document.getElementById("tool-start").onclick = () => setTool("start");
-    document.getElementById("tool-goal").onclick = () => setTool("goal");
-    document.getElementById("tool-area").onclick = () => setTool("area");
 
+    // Connect each button to its map tool
+    document.getElementById("tool-obstacle").onclick =
+      () => setTool("obstacle");
+
+    document.getElementById("tool-start").onclick =
+      () => setTool("start");
+
+    document.getElementById("tool-goal").onclick =
+      () => setTool("goal");
+
+    document.getElementById("tool-area").onclick =
+      () => setTool("area");
+
+
+    // Updates the displayed number beside each slider
     ["radius", "height", "altitude"].forEach(id => {
-      const input = document.getElementById(id);
-      const value = document.getElementById(id + "-value");
-      input.oninput = () => value.textContent = input.value;
+
+      const input =
+        document.getElementById(id);
+
+      const value =
+        document.getElementById(id + "-value");
+
+      input.oninput =
+        () => value.textContent = input.value;
+
     });
 
-    // ---------- Rendering ----------
+
+    // ============================================================
+    // MAP DRAWING
+    // ============================================================
+
+    // Redraws the planning area, obstacles, start/goal,
+    // and the planned flight path
     function redraw() {
-      // Boundary — redrawn fresh every time so it follows boundaryOriginX/Y.
-      if (mapObjects.boundaryRect) map.removeLayer(mapObjects.boundaryRect);
+      if (HOME_LAT === null || HOME_LON === null) return;
+
+
+      // ---------- Planning boundary ----------
+
+      // Remove the old boundary before drawing the new one
+      if (mapObjects.boundaryRect)
+        map.removeLayer(mapObjects.boundaryRect);
+
+
+      // Find the GPS coordinates of all four corners
       const corners = [
+
         worldToLatLon(0, 0),
+
         worldToLatLon(WORLD_SIZE, 0),
-        worldToLatLon(WORLD_SIZE, WORLD_SIZE),
-        worldToLatLon(0, WORLD_SIZE)
+
+        worldToLatLon(
+          WORLD_SIZE,
+          WORLD_SIZE
+        ),
+
+        worldToLatLon(
+          0,
+          WORLD_SIZE
+        )
+
       ];
-      mapObjects.boundaryRect = L.polygon(corners, {
-        color: "#4dd0a0", weight: 2, fillOpacity: 0.05, dashArray: "5,5"
-      }).addTo(map);
 
-      // Obstacles
-      mapObjects.obstacleCircles.forEach(c => map.removeLayer(c));
-      mapObjects.obstacleCircles = obstacles.map(o => {
-        const [lat, lon] = worldToLatLon(o.x, o.y);
-        const tall = o.height >= document.getElementById("altitude").value - 3;
-        const color = tall ? "#e57373" : "#9aa0a6";
-        const circle = L.circle([lat, lon], {
-          radius: o.radius, color: color, fillOpacity: 0.4, weight: 2
-        }).addTo(map);
-        circle.bindTooltip(`r=${o.radius}m h=${o.height}m`, { permanent: false });
-        circle.on("click", e => {
-          L.DomEvent.stopPropagation(e);
-          if (confirm(`Delete this obstacle?`)) {
-            obstacles = obstacles.filter(x => x !== o);
-            redraw();
-            log(`Deleted obstacle at (${o.x.toFixed(1)}, ${o.y.toFixed(1)})`);
+
+      // Draw the planning boundary
+      mapObjects.boundaryRect =
+        L.polygon(
+          corners,
+          {
+            color: "#4dd0a0",
+            weight: 2,
+            fillOpacity: 0.05,
+            dashArray: "5,5"
           }
+        ).addTo(map);
+
+
+      // ---------- Obstacles ----------
+
+      // Remove the old obstacle circles
+      mapObjects.obstacleCircles
+        .forEach(c => map.removeLayer(c));
+
+
+      // Draw every obstacle currently stored
+      mapObjects.obstacleCircles =
+        obstacles.map(o => {
+
+          const [lat, lon] =
+            worldToLatLon(o.x, o.y);
+
+
+          // Compare obstacle height to flight altitude
+          const tall =
+            o.height >=
+            document
+              .getElementById("altitude")
+              .value - 3;
+
+
+          // Tall obstacles are red
+          const color =
+            tall ? "#e57373" : "#9aa0a6";
+
+
+          const circle =
+            L.circle(
+              [lat, lon],
+              {
+                radius: o.radius,
+                color: color,
+                fillOpacity: 0.4,
+                weight: 2
+              }
+            ).addTo(map);
+
+
+          // Show obstacle information when hovering over it
+          circle.bindTooltip(
+            `r=${o.radius}m h=${o.height}m`,
+            { permanent: false }
+          );
+
+
+          // Clicking an obstacle lets the user delete it
+          circle.on("click", e => {
+
+            L.DomEvent.stopPropagation(e);
+
+            if (confirm("Delete this obstacle?")) {
+
+              obstacles =
+                obstacles.filter(
+                  x => x !== o
+                );
+
+              redraw();
+
+              log(
+                `Deleted obstacle at ` +
+                `(${o.x.toFixed(1)}, ` +
+                `${o.y.toFixed(1)})`
+              );
+            }
+          });
+
+
+          return circle;
         });
-        return circle;
-      });
 
-      // Start marker
-      if (mapObjects.startMarker) map.removeLayer(mapObjects.startMarker);
-      mapObjects.startMarker = L.circleMarker(worldToLatLon(start.x, start.y), {
-        radius: 8, color: "#4dd0a0", fillColor: "#4dd0a0", fillOpacity: 1
-      }).addTo(map).bindTooltip("Start");
 
-      // Goal marker
-      if (mapObjects.goalMarker) map.removeLayer(mapObjects.goalMarker);
-      mapObjects.goalMarker = L.circleMarker(worldToLatLon(goal.x, goal.y), {
-        radius: 8, color: "#e57373", fillColor: "#e57373", fillOpacity: 1
-      }).addTo(map).bindTooltip("Goal");
+      // ---------- Start marker ----------
 
-      // Planned path
+      if (mapObjects.startMarker)
+        map.removeLayer(
+          mapObjects.startMarker
+        );
+
+
+      mapObjects.startMarker =
+        L.circleMarker(
+          worldToLatLon(
+            start.x,
+            start.y
+          ),
+          {
+            radius: 8,
+            color: "#4dd0a0",
+            fillColor: "#4dd0a0",
+            fillOpacity: 1
+          }
+        )
+        .addTo(map)
+        .bindTooltip("Start");
+
+
+      // ---------- Goal marker ----------
+
+      if (mapObjects.goalMarker)
+        map.removeLayer(
+          mapObjects.goalMarker
+        );
+
+
+      mapObjects.goalMarker =
+        L.circleMarker(
+          worldToLatLon(
+            goal.x,
+            goal.y
+          ),
+          {
+            radius: 8,
+            color: "#e57373",
+            fillColor: "#e57373",
+            fillOpacity: 1
+          }
+        )
+        .addTo(map)
+        .bindTooltip("Goal");
+
+
+      // ---------- Planned path ----------
+
+      // Remove the previous planned path
       if (mapObjects.plannedLine) {
-        map.removeLayer(mapObjects.plannedLine);
+
+        map.removeLayer(
+          mapObjects.plannedLine
+        );
         mapObjects.plannedLine = null;
       }
-      if (plannedPath && plannedPath.length >= 2) {
-        const latlngs = plannedPath.map(p => worldToLatLon(p.x, p.y));
-        mapObjects.plannedLine = L.polyline(latlngs, {
-          color: "#4dd0a0", weight: 4, opacity: 0.8, dashArray: "8,4"
-        }).addTo(map);
+
+
+      // Draw the new planned path
+      if (
+        plannedPath &&
+        plannedPath.length >= 2
+      ) {
+
+        const latlngs =
+          plannedPath.map(
+            p => worldToLatLon(p.x, p.y)
+          );
+
+
+        mapObjects.plannedLine =
+          L.polyline(
+            latlngs,
+            {
+              color: "#4dd0a0",
+              weight: 4,
+              opacity: 0.8,
+              dashArray: "8,4"
+            }
+          ).addTo(map);
       }
     }
 
-    // ---------- Click handler ----------
+
+    // ============================================================
+    // MAP CLICK HANDLER
+    // ============================================================
+
+    // Handles clicks depending on which tool the user selected
     map.on("click", e => {
-      // For the "area" tool, clicks can be anywhere on the map — they move the
-      // boundary, not place obstacles inside it.
-      if (activeTool === "area") {
-        // Reposition the boundary so the click becomes its NEW center.
-        // Translate the click into "global meters from HOME", then back off by
-        // half the world size to get the new SW corner.
-        const yGlobal = (e.latlng.lat - HOME_LAT) * (Math.PI / 180) * EARTH_RADIUS_M;
-        const xGlobal = (e.latlng.lng - HOME_LON) * (Math.PI / 180) * EARTH_RADIUS_M
-                      * Math.cos(HOME_LAT * Math.PI / 180);
-        boundaryOriginX = xGlobal - WORLD_SIZE / 2;
-        boundaryOriginY = yGlobal - WORLD_SIZE / 2;
-        log(`Planning area moved to (${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)})`);
-        redraw();
+      if (HOME_LAT === null) { log("Connect telemetry and wait for a valid position first."); return; }
+      if (selectingTarget) {
+        selectingTarget = false;
+        demoTarget = {lat: e.latlng.lat, lon: e.latlng.lng};
+        if (targetMarker) map.removeLayer(targetMarker);
+        targetMarker = L.marker(e.latlng).addTo(map).bindTooltip("Demo target (review before Go)");
+        document.getElementById("demo-target").textContent = demoTarget.lat.toFixed(7) + ", " + demoTarget.lon.toFixed(7);
+        updateDemoControls();
         return;
       }
 
-      const { x, y } = latLonToWorld(e.latlng.lat, e.latlng.lng);
-      if (x < 0 || x > WORLD_SIZE || y < 0 || y > WORLD_SIZE) {
-        log(`Click outside planning area — ignored`);
+
+      // ---------- Move planning area ----------
+
+      if (activeTool === "area") {
+
+        // Convert the clicked GPS location into meters
+        const yGlobal =
+          (e.latlng.lat - HOME_LAT) *
+          (Math.PI / 180) *
+          EARTH_RADIUS_M;
+
+
+        const xGlobal =
+          (e.latlng.lng - HOME_LON) *
+          (Math.PI / 180) *
+          EARTH_RADIUS_M *
+          Math.cos(
+            HOME_LAT *
+            Math.PI / 180
+          );
+
+
+        // Move the center of the planning area to the click
+        boundaryOriginX =
+          xGlobal - WORLD_SIZE / 2;
+
+        boundaryOriginY =
+          yGlobal - WORLD_SIZE / 2;
+
+
+        log(
+          `Planning area moved to ` +
+          `(${e.latlng.lat.toFixed(5)}, ` +
+          `${e.latlng.lng.toFixed(5)})`
+        );
+
+
+        redraw();
+
         return;
       }
-      if (activeTool === "obstacle") {
-        const radius = parseFloat(document.getElementById("radius").value);
-        const height = parseFloat(document.getElementById("height").value);
-        obstacles.push({ x, y, radius, height });
-        log(`Placed obstacle at (${x.toFixed(1)}, ${y.toFixed(1)}) r=${radius} h=${height}`);
-      } else if (activeTool === "start") {
-        start = { x, y };
-        log(`Start set to (${x.toFixed(1)}, ${y.toFixed(1)})`);
-      } else if (activeTool === "goal") {
-        goal = { x, y };
-        log(`Goal set to (${x.toFixed(1)}, ${y.toFixed(1)})`);
+
+
+      // Convert the map click into local x/y coordinates
+      const { x, y } =
+        latLonToWorld(
+          e.latlng.lat,
+          e.latlng.lng
+        );
+
+
+      // Ignore clicks outside the planning boundary
+      if (
+        x < 0 ||
+        x > WORLD_SIZE ||
+        y < 0 ||
+        y > WORLD_SIZE
+      ) {
+
+        log(
+          "Click outside planning area — ignored"
+        );
+
+        return;
       }
+
+
+      // ---------- Place obstacle ----------
+
+      if (activeTool === "obstacle") {
+
+        const radius =
+          parseFloat(
+            document
+              .getElementById("radius")
+              .value
+          );
+
+
+        const height =
+          parseFloat(
+            document
+              .getElementById("height")
+              .value
+          );
+
+
+        obstacles.push({
+          x,
+          y,
+          radius,
+          height
+        });
+
+
+        log(
+          `Placed obstacle at ` +
+          `(${x.toFixed(1)}, ` +
+          `${y.toFixed(1)}) ` +
+          `r=${radius} h=${height}`
+        );
+      }
+
+
+      // ---------- Set start ----------
+
+      else if (activeTool === "start") {
+
+        start = { x, y };
+
+        log(
+          `Start set to ` +
+          `(${x.toFixed(1)}, ` +
+          `${y.toFixed(1)})`
+        );
+      }
+
+
+      // ---------- Set goal ----------
+
+      else if (activeTool === "goal") {
+
+        goal = { x, y };
+
+        log(
+          `Goal set to ` +
+          `(${x.toFixed(1)}, ` +
+          `${y.toFixed(1)})`
+        );
+      }
+
+
+      // Any change means the old path is no longer valid
       plannedPath = null;
-      document.getElementById("btn-fly").disabled = true;
+
+      document
+        .getElementById("btn-fly")
+        .disabled = true;
+
+
       redraw();
     });
 
-    // ---------- Altitude slider triggers obstacle recolor (tall vs short) ----------
-    document.getElementById("altitude").oninput = () => {
-      document.getElementById("altitude-value").textContent =
-        document.getElementById("altitude").value;
-      redraw();
-    };
 
-    // ---------- API calls ----------
-    async function planPath() {
-      const altitude = parseFloat(document.getElementById("altitude").value);
-      const body = { obstacles, start, goal, altitudeMeters: altitude };
-      log(`Planning... (${obstacles.length} obstacles, altitude ${altitude}m)`);
-      try {
-        const res = await fetch(API_BASE + "/api/plan", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
-        const data = await res.json();
-        if (data.success) {
-          plannedPath = data.waypoints;
-          log(`✓ ${data.message}`);
-          document.getElementById("btn-fly").disabled = false;
-        } else {
-          plannedPath = null;
-          log(`✗ ${data.message}`);
-          document.getElementById("btn-fly").disabled = true;
-        }
+    // ============================================================
+    // ALTITUDE CONTROL
+    // ============================================================
+
+    // Redraw obstacles when altitude changes
+    // because obstacle colors depend on the flight altitude
+    document
+      .getElementById("altitude")
+      .oninput = () => {
+
+        document
+          .getElementById("altitude-value")
+          .textContent =
+            document
+              .getElementById("altitude")
+              .value;
+
         redraw();
-      } catch (e) {
-        log(`✗ Plan failed: ${e}`);
+      };
+
+
+    // ============================================================
+    // TELEMETRY COM PORTS
+    // ============================================================
+
+    // Gets available COM ports from the backend
+    // The SiK telemetry radio should appear in this list
+    async function loadTelemetryPorts() {
+
+      const select =
+        document.getElementById(
+          "telemetry-port"
+        );
+
+
+      const connectButton =
+        document.getElementById(
+          "btn-connect-telemetry"
+        );
+
+
+      // Show loading message while waiting for the backend
+      select.innerHTML =
+        '<option value="">Loading ports...</option>';
+
+
+      connectButton.disabled = true;
+
+
+      try {
+
+        // Ask Program.cs for the available COM ports
+        const res =
+          await fetch(
+            API_BASE +
+            "/api/telemetry/ports"
+          );
+
+
+        const data =
+          await res.json();
+
+
+        select.innerHTML = '<option value="">Select a telemetry port</option>';
+
+
+        // Nothing was detected
+        if (
+          !data.success ||
+          !data.ports ||
+          data.ports.length === 0
+        ) {
+
+          select.innerHTML =
+            '<option value="">No COM ports found</option>';
+
+
+          log(
+            "No telemetry COM ports detected"
+          );
+
+
+          return;
+        }
+
+
+        // Add each COM port to the dropdown
+        data.ports.forEach(port => {
+
+          const option =
+            document.createElement(
+              "option"
+            );
+
+
+          option.value =
+            port.device;
+
+
+          option.textContent =
+            `${port.device} - ${port.description}`;
+
+
+          select.appendChild(option);
+
+        });
+
+
+        updateDemoControls();
+
+
+        log(
+          `Detected ${data.ports.length} COM port(s)`
+        );
+
+      }
+
+      catch (e) {
+
+        select.innerHTML =
+          '<option value="">Bridge unavailable</option>';
+
+
+        connectButton.disabled = true;
+
+
+        log(
+          `✗ Could not load COM ports: ${e}`
+        );
       }
     }
 
-    async function flyMission() {
-      if (!plannedPath || plannedPath.length < 2) {
-        log("No planned path");
-        return;
-      }
-      const altitude = parseFloat(document.getElementById("altitude").value);
-      log(`Flying ${plannedPath.length} waypoints at ${altitude}m...`);
-      document.getElementById("btn-fly").disabled = true;
-      // Reset the trail so we cleanly see this mission's actual path.
-      droneTrail = [];
+
+    // Refresh button checks for COM ports again
+    document
+      .getElementById("btn-refresh-ports")
+      .onclick =
+        loadTelemetryPorts;
+
+
+    // ============================================================
+    // PATH PLANNING
+    // ============================================================
+
+    // Sends the mission information to the backend
+    // The backend returns a list of calculated waypoints
+    async function planPath() {
+
+      const altitude =
+        parseFloat(
+          document
+            .getElementById("altitude")
+            .value
+        );
+
+
+      // Data that gets sent to Program.cs
+      const body = {
+        obstacles,
+        start,
+        goal,
+        altitudeMeters: altitude
+      };
+
+
+      log(
+        `Planning... ` +
+        `(${obstacles.length} obstacles, ` +
+        `altitude ${altitude}m)`
+      );
+
+
       try {
-        const res = await fetch(API_BASE + "/api/fly", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ waypoints: plannedPath, altitudeMeters: altitude })
-        });
-        const data = await res.json();
-        log(`✓ Mission started (${data.waypoints} waypoints)`);
-        log(`  Watch QGroundControl for live flight`);
-      } catch (e) {
-        log(`✗ Fly failed: ${e}`);
-      } finally {
-        setTimeout(() => {
-          document.getElementById("btn-fly").disabled = false;
-        }, 5000);
+
+        const res =
+          await fetch(
+            API_BASE + "/api/plan",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body:
+                JSON.stringify(body)
+            }
+          );
+
+
+        const data =
+          await res.json();
+
+
+        // Path was successfully calculated
+        if (data.success) {
+
+          plannedPath =
+            data.waypoints;
+
+
+          log(
+            `✓ ${data.message}`
+          );
+
+
+          document
+            .getElementById("btn-fly")
+            .disabled = true;
+        }
+
+        // Path planner could not find a path
+        else {
+
+          plannedPath = null;
+
+
+          log(
+            `✗ ${data.message}`
+          );
+
+
+          document
+            .getElementById("btn-fly")
+            .disabled = true;
+        }
+
+
+        redraw();
+      }
+
+      catch (e) {
+
+        log(
+          `✗ Plan failed: ${e}`
+        );
       }
     }
+
+
+    // ============================================================
+    // FLY MISSION
+    // ============================================================
+
+    // Sends the planned waypoints to the backend
+    async function flyMission() { log("Automatic mission execution disabled. Use individual demo controls."); }
 
     async function abortMission() {
-      log(`Aborting mission — switching to LAND...`);
+
+      log(
+        "Aborting mission — switching to LAND..."
+      );
+
+
       try {
-        const res = await fetch(API_BASE + "/api/abort", { method: "POST" });
-        const data = await res.json();
-        log(`✓ Abort: ${data.message || data.status}`);
-      } catch (e) {
-        log(`✗ Abort failed: ${e}`);
+
+        const res =
+          await fetch(
+            API_BASE + "/api/abort",
+            {
+              method: "POST"
+            }
+          );
+
+
+        const data =
+          await res.json();
+
+
+        log(
+          `✓ Abort: ` +
+          `${data.message || data.status}`
+        );
+
+      }
+
+      catch (e) {
+
+        log(
+          `✗ Abort failed: ${e}`
+        );
       }
     }
 
+
+    // ============================================================
+    // CLEAR MAP
+    // ============================================================
+
+    // Removes all obstacles and clears the current path
     function clearAll() {
+
       obstacles = [];
+
       plannedPath = null;
-      document.getElementById("btn-fly").disabled = true;
-      log(`Cleared all obstacles`);
+
+
+      document
+        .getElementById("btn-fly")
+        .disabled = true;
+
+
+      log(
+        "Cleared all obstacles"
+      );
+
+
       redraw();
     }
 
-    document.getElementById("btn-plan").onclick = planPath;
-    document.getElementById("btn-fly").onclick = flyMission;
-    document.getElementById("btn-abort").onclick = abortMission;
-    document.getElementById("btn-clear").onclick = clearAll;
 
-    // ---------- Drone live tracking ----------
-    // Poll /api/status every 1 second. When the drone has moved at least a meter
-    // since last poll, append to the trail. Always update the icon position.
+    // Connect the action buttons to their functions
+    document.getElementById("btn-plan").onclick =
+      planPath;
+
+    document.getElementById("btn-fly").onclick =
+      flyMission;
+
+    document.getElementById("btn-abort").onclick =
+      abortMission;
+
+    document.getElementById("btn-clear").onclick =
+      clearAll;
+
+
+    // ============================================================
+    // LIVE DRONE TRACKING
+    // ============================================================
+
+    // Gets the drone position from the backend
+    // This function runs once every second
     async function pollDronePosition() {
+      if (polling) return;
+      polling = true;
       try {
-        const res = await fetch(API_BASE + "/api/status");
-        const data = await res.json();
-        if (!data.connected) return;
-
-        const latLon = localMetersToLatLon(data.xLocal, data.yLocal);
-
-        // Add to trail if we've moved at least 1 meter from the last point.
-        if (!lastDroneLatLon || haversineMeters(lastDroneLatLon, latLon) > 1.0) {
+        const res = await fetch("/api/status", {signal: AbortSignal.timeout(4000)});
+        telemetry = await res.json();
+        lastTelemetryAt = Date.now();
+        updateDemoControls();
+        if (!telemetry.connected || !telemetry.positionValid) {
+          lastDroneLatLon = null;
+          redrawDrone();
+          return;
+        }
+        const origin = telemetry.planningOrigin;
+        if (origin && (displayedSession !== telemetry.sessionId || HOME_LAT !== origin.lat || HOME_LON !== origin.lon)) {
+          displayedSession = telemetry.sessionId;
+          el("bench-confirmed").checked = false;
+          demoTarget = null; selectingTarget = false;
+          if (targetMarker) map.removeLayer(targetMarker);
+          targetMarker = null; el("demo-target").textContent = "No destination selected";
+          HOME_LAT = origin.lat; HOME_LON = origin.lon;
+          obstacles = []; plannedPath = null; droneTrail = [];
+          boundaryOriginX = -WORLD_SIZE/2; boundaryOriginY = -WORLD_SIZE/2;
+          start = latLonToWorld(telemetry.lat, telemetry.lon);
+          goal = {...start};
+          map.setView([telemetry.lat, telemetry.lon], 19);
+          redraw();
+        }
+        const latLon = [telemetry.lat, telemetry.lon];
+        if (!lastDroneLatLon || haversineMeters(lastDroneLatLon, latLon) > 1) {
           droneTrail.push(latLon);
-          // Cap trail length so it doesn't grow forever.
           if (droneTrail.length > 500) droneTrail.shift();
         }
         lastDroneLatLon = latLon;
         redrawDrone();
       } catch (e) {
-        // Drone unavailable — that's fine, just don't update.
-      }
+        telemetry = {connected: false, blockers: ["Telemetry request failed"]};
+        lastDroneLatLon = null; redrawDrone(); updateDemoControls();
+      } finally { polling = false; }
     }
 
+    // Calculates distance between two GPS coordinates
     function haversineMeters(a, b) {
-      const toRad = d => d * Math.PI / 180;
-      const dLat = toRad(b[0] - a[0]);
-      const dLon = toRad(b[1] - a[1]);
-      const lat1 = toRad(a[0]);
-      const lat2 = toRad(b[0]);
-      const x = Math.sin(dLat/2) ** 2 + Math.sin(dLon/2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
-      return 2 * EARTH_RADIUS_M * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+
+      const toRad =
+        d => d * Math.PI / 180;
+
+
+      const dLat =
+        toRad(b[0] - a[0]);
+
+
+      const dLon =
+        toRad(b[1] - a[1]);
+
+
+      const lat1 =
+        toRad(a[0]);
+
+
+      const lat2 =
+        toRad(b[0]);
+
+
+      const x =
+        Math.sin(dLat / 2) ** 2 +
+
+        Math.sin(dLon / 2) ** 2 *
+
+        Math.cos(lat1) *
+
+        Math.cos(lat2);
+
+
+      return (
+        2 *
+        EARTH_RADIUS_M *
+        Math.atan2(
+          Math.sqrt(x),
+          Math.sqrt(1 - x)
+        )
+      );
     }
 
+
+    // Draws the current drone position and traveled path
     function redrawDrone() {
-      if (mapObjects.droneMarker) map.removeLayer(mapObjects.droneMarker);
-      if (mapObjects.trailLine) map.removeLayer(mapObjects.trailLine);
 
-      if (!lastDroneLatLon) return;
 
-      // Trail.
+      // Remove old drone marker
+      if (mapObjects.droneMarker)
+        map.removeLayer(
+          mapObjects.droneMarker
+        );
+
+
+      // Remove old trail line
+      if (mapObjects.trailLine)
+        map.removeLayer(
+          mapObjects.trailLine
+        );
+
+
+      // Nothing to draw until a position has been received
+      if (!lastDroneLatLon)
+        return;
+
+
+      // ---------- Drone trail ----------
+
       if (droneTrail.length >= 2) {
-        mapObjects.trailLine = L.polyline(droneTrail, {
-          color: "#5599ff", weight: 3, opacity: 0.6
-        }).addTo(map);
+
+        mapObjects.trailLine =
+          L.polyline(
+            droneTrail,
+            {
+              color: "#5599ff",
+              weight: 3,
+              opacity: 0.6
+            }
+          ).addTo(map);
       }
 
-      // Drone icon — blue circle, slightly larger than start/goal markers.
-      mapObjects.droneMarker = L.circleMarker(lastDroneLatLon, {
-        radius: 10,
-        color: "#3377cc",
-        fillColor: "#5599ff",
-        fillOpacity: 1,
-        weight: 3
-      }).addTo(map).bindTooltip("Drone");
+
+      // ---------- Drone marker ----------
+
+      // Blue circle shows the drone's current location
+      mapObjects.droneMarker =
+        L.circleMarker(
+          lastDroneLatLon,
+          {
+            radius: 10,
+            color: "#3377cc",
+            fillColor: "#5599ff",
+            fillOpacity: 1,
+            weight: 3
+          }
+        )
+        .addTo(map)
+        .bindTooltip("Drone");
     }
 
-    setInterval(pollDronePosition, 1000);
+
+
+    let telemetry = {}, busy = false, polling = false, lastTelemetryAt = 0, benchRunning = false, safetySession = null;
+    let selectingTarget = false, demoTarget = null, targetMarker = null, displayedSession = null;
+    let indoorBaseline=null;
+    const el = id => document.getElementById(id);
+    const show = (v, digits=1) => typeof v === "number" ? v.toFixed(digits) : "Unknown";
+    function updateDemoControls() {
+      const fresh = Date.now() - lastTelemetryAt < 3500;
+      const t = fresh ? telemetry : {blockers: ["Browser telemetry is stale"]};
+      const linked = fresh && t.connected;
+      updateIndoorStage(t,linked);
+      if (t.sessionId && safetySession !== t.sessionId) {
+        safetySession=t.sessionId; indoorBaseline=null; el("baseline-reading").textContent="Capture a baseline to compare tilt, heading and floor distance."; el("bench-confirmed").checked=false; el("operator-confirmed").checked=false;
+
+      }
+      el("link-badge").textContent = linked ? "Connected" : "Offline";
+      el("link-badge").classList.toggle("connected", !!linked);
+      el("tile-mode").textContent = linked ? (t.mode || "Unknown") : "Waiting";
+      el("tile-motors").textContent = linked ? (t.armed ? "Armed" : "Disarmed") : "Unknown";
+      const rangeArrow = typeof t.downwardRate === "number" && Math.abs(t.downwardRate) >= 0.03 ? (t.downwardRate > 0 ? " ↑" : " ↓") : "";
+      el("tile-height").textContent = typeof t.downwardDistance === "number" ? show(t.downwardDistance,2) + " m" + rangeArrow : "Unavailable";
+      el("tile-battery").textContent = typeof t.batteryPercent === "number" ? show(t.batteryPercent,0) + "%" : typeof t.batteryVoltage === "number" ? show(t.batteryVoltage,1) + " V" : "Unavailable";
+      el("map-waiting").hidden = !!(linked && t.positionValid);
+      const latestMessage=(t.statusText || []).map(x=>x.trim()).filter(x=>x.length>=8).slice(-1)[0];
+      el("vehicle-note").hidden=!latestMessage;
+      el("vehicle-note").textContent=latestMessage ? "PX4: " + latestMessage : "";
+      const benchReady = linked && !t.armed && t.landedState === 1;
+      el("btn-motor-test").disabled = busy || !benchReady || !el("bench-confirmed").checked;
+      el("btn-motor-test").textContent = benchRunning ? "Testing motors…" : "Run brief motor test";
+      el("bench-help").textContent = benchRunning ? "Waiting for PX4. The test requests automatic disarm; keep clear until disarming is confirmed." :
+        !linked ? "Connect the radio to begin." : t.armed ? "Vehicle is armed. Disarm it before running a bench test." : t.landedState !== 1 ? "Waiting for PX4 to confirm the vehicle is on the ground." :
+        !el("bench-confirmed").checked ? "Remove every propeller, secure the vehicle, then confirm above." : "Ready to send one normal arm request. PX4 keeps its arming checks enabled.";
+      el("radio-status").textContent = t.radioConnected ? "Open: " + t.port + " / " + t.baud + (linked ? " · Disconnect before changing ports" : (t.message ? " · Connection failed: " + t.message : " · Heartbeat missing; check vehicle power/link")) : "Disconnected";
+      el("pixhawk-status").textContent = linked ? "Heartbeat: " + show(t.heartbeatAge) + " s" : "No fresh heartbeat";
+      el("live-telemetry").textContent =
+        "Mode: " + (t.mode || "Unknown") + " | Armed: " + (linked ? t.armed : "Unknown") +
+        "\nGPS: " + (t.gpsFix ?? "Unknown") + " | Satellites: " + (t.satellites ?? "Unknown") + " | HDOP: " + show(t.hdop) +
+        "\nPosition: " + show(t.lat,7) + ", " + show(t.lon,7) +
+        "\nAltitude home / AMSL: " + show(t.altitude) + " / " + show(t.altitudeAmsl) + " m" +
+        "\nBattery: " + show(t.batteryPercent,0) + "% / " + show(t.batteryVoltage,2) + " V" +
+        "\nRoll / pitch / heading: " + show(t.roll) + " / " + show(t.pitch) + " / " + show(t.heading) + "°" +
+        "\nLiDAR: " + (typeof t.downwardDistance === "number" ? show(t.downwardDistance,2) + " m" : "Unavailable") +
+        " | status: " + (t.downwardStatus || "unknown") +
+        " | rate: " + show(t.downwardUpdateRate,1) + " Hz" +
+        "\nLanded state: " + (t.landedState ?? "Unknown") +
+        "\nPlanning origin: " + (t.originSource || "Unknown") +
+        "\nPX4 home: " + (t.home ? show(t.home.lat,7) + ", " + show(t.home.lon,7) : "Waiting") +
+        "\n" + (t.statusText || []).slice(-3).join("\n");
+      el("preflight-blockers").textContent = (t.blockers || []).length ? "Flight unavailable: " + friendlyBlockers(t) :
+        (t.demoEnabled ? "Demo unlocked. Confirm observed state after each action." : "Preflight telemetry ready. Demo controls locked.");
+      el("btn-connect-telemetry").disabled = busy || !el("telemetry-port").value;
+      el("btn-connect-telemetry").textContent = t.radioConnected ? "Check / reconnect" : "Connect";
+      el("telemetry-port").disabled = busy;
+      el("telemetry-baud").disabled = busy;
+      el("btn-disconnect-telemetry").disabled = busy || !t.canDisconnect;
+      el("btn-demo-enable").disabled = busy || !linked || (!t.demoEnabled && (!t.preflightReady || !el("operator-confirmed").checked));
+      el("btn-demo-enable").textContent = t.demoEnabled ? "Lock demo controls" : "Unlock demo controls";
+      el("btn-set-mode").disabled = busy || !linked || t.armed || t.landedState !== 1;
+      el("flight-mode-select").disabled = busy;
+
+      el("btn-set-mode").textContent = "Apply mode";
+      el("btn-indoor-arm").disabled = busy || !linked || !t.canBenchTest || !el("bench-confirmed").checked;
+      el("btn-indoor-disarm").disabled = busy || !linked || !t.armed || t.landedState !== 1;
+      el("btn-indoor-takeoff").disabled = busy || !linked || !t.canTakeoff;
+      el("btn-arm").disabled = busy || !linked || !t.canArm;
+      el("btn-disarm").disabled = busy || !linked || !t.armed || t.landedState !== 1;
+      el("btn-takeoff").disabled = busy || !linked || !t.canTakeoff;
+      el("btn-hold").disabled = busy || !linked || !t.canNavigate;
+      el("btn-select-target").disabled = !linked || !t.positionValid;
+      el("btn-goto").disabled = busy || !linked || !t.canNavigate || !demoTarget || !t.home;
+      el("btn-yaw").disabled = busy || !linked || !t.canNavigate;
+      el("btn-land").disabled = !linked || !t.canLand;
+      el("btn-abort").disabled = !linked || !t.canLand;
+      el("btn-fly").disabled = true;
+      el("btn-plan").disabled = HOME_LAT === null;
+    }
+    async function postDemo(url, body, emergency=false) {
+      if (busy && !emergency) return;
+      if (!emergency) busy = true;
+      updateDemoControls();
+      try {
+        const res = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body), signal: AbortSignal.timeout(25000)});
+        const reply = await res.json();
+        showResult(reply);
+        log((reply.status === "ok" ? "✓ " : "✗ ") + (reply.message || "Request failed"));
+        return reply.status === "ok";
+      } catch (e) {
+        showResult({status:"error",message:"Connection interrupted. The command outcome is unknown. Check the vehicle and telemetry before trying again."});
+        log("Response lost or unavailable; outcome unknown. Inspect telemetry before retrying: " + e);
+        telemetry.demoEnabled = false;
+        el("operator-confirmed").checked = false; el("bench-confirmed").checked = false;
+        try { await fetch("/api/demo/enable", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({enabled:false,confirmed:false}), signal:AbortSignal.timeout(2000)}); } catch (_) {}
+      } finally { if (!emergency) busy = false; await pollDronePosition(); updateDemoControls(); }
+    }
+    async function demoAction(action) {
+      const altitude = Number(el("demo-altitude").value), heading = Number(el("demo-heading").value);
+      if (["takeoff", "goto"].includes(action) && (!Number.isFinite(altitude) || altitude < 1 || altitude > 5)) { log("Select altitude from 1 to 5 m"); return; }
+      if (action === "yaw" && (!Number.isFinite(heading) || heading < 0 || heading > 360)) { log("Select heading from 0 to 360°"); return; }
+      const body = {altitude, heading, ...(demoTarget || {})};
+      const detail = action === "goto" ? " to " + el("demo-target").textContent + " at " + altitude + " m above home" :
+        action === "takeoff" ? " to " + altitude + " m above current ground" : action === "yaw" ? " to " + heading + "°" : "";
+      if (["arm", "takeoff", "goto", "yaw"].includes(action) && !confirm("Send " + action + detail + " to the real vehicle?")) return;
+      await postDemo("/api/demo/" + action, body, ["land", "abort"].includes(action));
+    }
+    el("telemetry-port").onchange=updateDemoControls;
+    el("telemetry-baud").onchange=updateDemoControls;
+    el("btn-connect-telemetry").onclick = async () => {
+      if (busy) return;
+      await pollDronePosition();
+      if (telemetry.radioConnected) {
+        if (!telemetry.canDisconnect) {
+          showResult({status:"error",message:telemetry.connected ? "Vehicle is armed. Disarm on ground before reconnecting." : "The radio port is already open, but no fresh vehicle heartbeat is arriving. Check vehicle power and the air radio. Flight controls remain locked; the existing link is retained."});
+          return;
+        }
+        if (!await postDemo("/api/telemetry/disconnect", {})) return;
+      }
+      const ok = await postDemo("/api/telemetry/connect", {port: el("telemetry-port").value, baud: Number(el("telemetry-baud").value)});
+      if (ok) { el("operator-confirmed").checked = false; demoTarget = null; selectingTarget = false; }
+    };
+    el("btn-disconnect-telemetry").onclick = async () => {
+      if (await postDemo("/api/telemetry/disconnect", {})) {
+        el("operator-confirmed").checked = false;
+        demoTarget = null; selectingTarget = false;
+        if (targetMarker) map.removeLayer(targetMarker);
+        targetMarker = null; el("demo-target").textContent = "No destination selected";
+      }
+    };
+    el("btn-demo-enable").onclick = () => postDemo("/api/demo/enable", {enabled: !telemetry.demoEnabled, confirmed: el("operator-confirmed").checked});
+    el("operator-confirmed").onchange = () => {
+      if (!el("operator-confirmed").checked && telemetry.demoEnabled) postDemo("/api/demo/enable", {enabled:false, confirmed:false});
+      updateDemoControls();
+    };
+    for (const action of ["arm", "disarm", "takeoff", "hold", "goto", "yaw", "land"]) el("btn-" + action).onclick = () => demoAction(action);
+    el("btn-select-target").onclick = () => { selectingTarget = true; log("Click a destination, then review it and press Go."); };
+    el("btn-abort").onclick = () => demoAction("abort");
+
+
+    function updateIndoorStage(t,linked) {
+      const attitudeValid=linked && typeof t.roll==="number" && typeof t.pitch==="number";
+      el("attitude-surface").style.transform=attitudeValid ? "rotate("+(-t.roll)+"deg) translateY("+Math.max(-70,Math.min(70,t.pitch*2))+"px)" : "none";
+      el("attitude-surface").style.opacity=attitudeValid ? "1" : ".2";
+      el("attitude-values").textContent=attitudeValid ? "Roll "+show(t.roll)+"° · Pitch "+show(t.pitch)+"°" : "Waiting for attitude";
+      // Downward TFmini Plus display. These values are read-only telemetry from PX4.
+      const rangeAvailable=linked && typeof t.downwardDistance==="number";
+      const rangeStatus=t.downwardStatus || "no_sensor";
+      const statusText={valid:"LIVE",stale:"STALE",out_of_range:"OUT OF RANGE",no_sensor:"NO SENSOR"}[rangeStatus] || "WAITING";
+      const statusClass=rangeStatus==="valid" ? "range-status" : rangeStatus==="stale" ? "range-status warn" : "range-status bad";
+
+      el("range-reading").textContent=rangeAvailable ? show(t.downwardDistance,2)+" m" : "—";
+      el("range-feet").textContent=rangeAvailable ? show(t.downwardDistance*3.28084,2)+" ft" : "Waiting for LiDAR";
+      el("range-status").textContent=statusText;
+      el("range-status").className=statusClass;
+      el("range-rate").textContent=typeof t.downwardRate==="number" ? (t.downwardRate>0 ? "+" : "")+show(t.downwardRate,2)+" m/s" : "—";
+      el("range-update-rate").textContent=typeof t.downwardUpdateRate==="number" ? show(t.downwardUpdateRate,1)+" Hz" : "—";
+      el("range-age").textContent=typeof t.downwardAge==="number" ? show(t.downwardAge,2)+" s" : "—";
+      el("range-quality").textContent=typeof t.downwardSignalQuality==="number" ? t.downwardSignalQuality+"%" : "Not reported";
+      el("range-limits").textContent=typeof t.downwardMaxDistance==="number" ? show(t.downwardMaxDistance,1)+" m" : "—";
+
+      const maxRange=typeof t.downwardMaxDistance==="number" && t.downwardMaxDistance>0 ? t.downwardMaxDistance : 5;
+      const rangePercent=rangeAvailable ? Math.max(0,Math.min(100,(t.downwardDistance/maxRange)*100)) : 0;
+      el("range-bar-fill").style.width=rangePercent+"%";
+
+      if (rangeAvailable) {
+        el("range-help").textContent="Live floor distance from the downward TFmini Plus.";
+      } else if (rangeStatus==="stale") {
+        el("range-help").textContent="LiDAR was detected, but its DISTANCE_SENSOR data is stale.";
+      } else if (rangeStatus==="out_of_range") {
+        el("range-help").textContent="Raw LiDAR reading shown. PX4 reports it outside the rated measurement range.";
+      } else {
+        el("range-help").textContent="No downward LiDAR reading received. Check TELEM1 and PX4 TFmini settings.";
+      }
+      el("heading-arrow").style.transform=linked && typeof t.heading==="number" ? "rotate("+t.heading+"deg)" : "none";
+      el("heading-arrow").style.opacity=linked && typeof t.heading==="number" ? "1" : ".2";
+      el("heading-reading").textContent=linked && typeof t.heading==="number" ? show(t.heading)+"° clockwise from North" : "Waiting for heading";
+      el("btn-capture-baseline").disabled=!attitudeValid || t.armed;
+      el("btn-save-telemetry").disabled=!linked;
+      el("btn-clear-baseline").disabled=!indoorBaseline;
+      if (indoorBaseline && attitudeValid) {
+        const deltaHeading=typeof t.heading==="number" && typeof indoorBaseline.heading==="number" ? ((t.heading-indoorBaseline.heading+540)%360)-180 : null;
+        const deltaRange=rangeAvailable && typeof indoorBaseline.downwardDistance==="number" ? t.downwardDistance-indoorBaseline.downwardDistance : null;
+        el("baseline-reading").textContent="From baseline: roll "+show(t.roll-indoorBaseline.roll)+"° · pitch "+show(t.pitch-indoorBaseline.pitch)+"° · heading "+show(deltaHeading)+"° · floor distance "+show(deltaRange,2)+" m";
+      }
+    }
+    el("btn-capture-baseline").onclick=()=> { indoorBaseline={...telemetry}; updateDemoControls(); };
+    el("btn-clear-baseline").onclick=()=> { indoorBaseline=null; el("baseline-reading").textContent="Capture a baseline to compare tilt, heading and floor distance."; updateDemoControls(); };
+    el("btn-check-link").onclick=async ()=> { await pollDronePosition(); el("link-result").textContent=telemetry.connected && Date.now()-lastTelemetryAt<3500 ? "Connection confirmed · heartbeat "+show(telemetry.heartbeatAge)+" seconds old." : "No fresh connection. Check the radio and bridge."; };
+    el("btn-save-telemetry").onclick=()=> {
+      if (!telemetry.connected || Date.now()-lastTelemetryAt>=3500) return;
+      const url=URL.createObjectURL(new Blob([JSON.stringify({capturedAt:new Date().toISOString(),telemetry},null,2)],{type:"application/json"}));
+      const a=document.createElement("a");a.href=url;a.download="venator-telemetry.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    };
+    function friendlyBlockers(t) {
+      const reasons=[];
+      if (!t.connected) reasons.push("connect the radio and wait for a heartbeat");
+      if (!t.gpsValid) reasons.push("GPS has no usable fix");
+      if (!t.estimatorValid || !t.positionValid) reasons.push("position tracking is not ready");
+      if ((t.blockers || []).some(x=>x.includes("pre-arm") || x.includes("standby"))) reasons.push("PX4 reports incomplete system checks");
+      if (t.landedState == null) reasons.push("ground/air state is unknown");
+      return reasons.join("; ") + ". You can still use the props-off motor test when its requirements are met.";
+    }
+    function showResult(reply) {
+      let message=reply.message || "No result received.";
+      if (reply.data && reply.data.armedObserved && reply.data.disarmedConfirmed) message="Motor test complete. PX4 armed, then disarmed. The vehicle is confirmed disarmed.";
+      else if (reply.data && reply.data.accepted===true) message="PX4 accepted the request. Check live telemetry to confirm the vehicle state.";
+      else if (reply.data && reply.data.result && reply.data.accepted===false) message="PX4 rejected the request (" + reply.data.result.replace("MAV_RESULT_", "").toLowerCase().replaceAll("_", " ") + "). Check the latest vehicle message below.";
+      el("action-result").hidden=false;
+      el("action-result").className="result " + (reply.status==="ok" ? "success" : "error");
+      el("action-result").textContent=message;
+    }
+    function selectTest(type) {
+      const bench=type==="bench";
+      el("bench-panel").hidden=!bench; el("flight-panel").hidden=bench;
+      for (const name of ["bench","flight"]) {
+        el("tab-"+name).setAttribute("aria-selected", String(name===type));
+        el("tab-"+name).classList.toggle("secondary", name!==type);
+      }
+    }
+    el("tab-bench").onclick=()=>selectTest("bench");
+    el("tab-flight").onclick=()=>selectTest("flight");
+    el("bench-confirmed").onchange=updateDemoControls;
+    el("btn-motor-test").onclick=async ()=> {
+      if (!el("bench-confirmed").checked || busy || el("btn-motor-test").disabled) return;
+      benchRunning=true;
+      await postDemo("/api/demo/bench_arm", {propsOffConfirmed:true});
+      benchRunning=false; el("bench-confirmed").checked=false; updateDemoControls();
+    };
+    el("flight-mode-select").onchange=updateDemoControls;
+    el("btn-set-mode").onclick=async ()=> {
+      if (el("btn-set-mode").disabled) return;
+      await postDemo("/api/demo/set_mode", {mode:el("flight-mode-select").value});
+    };
+    el("btn-health-check").onclick=()=> {
+      el("action-result").hidden=false;
+      el("action-result").className="result";
+      el("action-result").textContent=(telemetry.statusText || []).join(" · ") || "No vehicle messages received. Check connection and live telemetry.";
+    };
+    el("btn-indoor-arm").onclick=async ()=> {
+      if (el("btn-indoor-arm").disabled || !el("bench-confirmed").checked) return;
+      if (!confirm("Arm with every propeller removed? Motors may spin and remain armed until you disarm.")) return;
+      await postDemo("/api/demo/arm", {propsOffConfirmed:true});
+      el("bench-confirmed").checked=false; updateDemoControls();
+    };
+    el("btn-indoor-disarm").onclick=()=>demoAction("disarm");
+    el("btn-indoor-takeoff").onclick=()=> {
+      if (el("btn-indoor-takeoff").disabled) return;
+      el("demo-altitude").value=el("indoor-altitude").value; demoAction("takeoff");
+    };
+    setInterval(updateDemoControls, 500);
+
+    document.querySelector(".future-map").addEventListener("toggle", event=> { if (event.target.open) { map.invalidateSize(); if (HOME_LAT===null) map.fitWorld(); } });
+    setTimeout(()=> { map.invalidateSize(); if (HOME_LAT===null) map.fitWorld(); }, 0);
+    // Refresh live telemetry 5 times per second for smoother attitude and LiDAR updates
+    setInterval(
+      pollDronePosition,
+      200
+    );
+
+
+    // Check immediately when the page first loads
     pollDronePosition();
 
-    // ---------- Initial draw ----------
+
+    // ============================================================
+    // STARTUP
+    // ============================================================
+
+    // Check which COM ports are available when the GUI opens
+    loadTelemetryPorts();
+
+
+    // Draw the initial map
     redraw();
-    log("Ready. Click on the map (inside the dashed boundary) to place obstacles.");
+
+
+    // Initial message shown in the log
+    log("Ready. Connect the selected telemetry port. Wait for valid live position before planning. Props off for bench tests.");
+
   </script>
+
 </body>
 </html>
