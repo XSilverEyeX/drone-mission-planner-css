@@ -44,3 +44,22 @@ public class FlyRequest
     public List<PointDto> Waypoints { get; set; } = new();
     public double AltitudeMeters { get; set; } = 20.0;
 }
+public class ConnectionRequest
+{
+    public string Port { get; set; } = "";
+    public int Baud { get; set; } = 57600;
+}
+public class DemoEnableRequest
+{
+    public bool Enabled { get; set; }
+    public bool Confirmed { get; set; }
+}
+public class DemoRequest
+{
+    public string? Mode { get; set; }
+    public double? Altitude { get; set; }
+    public double? Lat { get; set; }
+    public double? Lon { get; set; }
+    public double? Heading { get; set; }
+    public bool PropsOffConfirmed { get; set; }
+}
