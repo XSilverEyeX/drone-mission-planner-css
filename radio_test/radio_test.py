@@ -1,3 +1,6 @@
+# VENATOR SOURCE GUIDE: A two-port loopback communication check for SiK radios.
+# Comments describe the existing implementation; operational logic remains unchanged.
+
 """
 VENATOR SiK Radio-to-Radio Test
 

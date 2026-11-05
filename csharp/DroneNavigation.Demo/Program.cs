@@ -1,3 +1,6 @@
+// VENATOR SOURCE GUIDE: Console sample for navigating test scenes through the path planner.
+// Comments describe the existing implementation; operational logic remains unchanged.
+
 ﻿using DroneNavigation.Geometry;
 using DroneNavigation.Obstacles;
 using DroneNavigation.PathPlanning;

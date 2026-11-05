@@ -1,3 +1,6 @@
+// VENATOR SOURCE GUIDE: Public interface for inserting and retrieving spatial obstacles.
+// Comments describe the existing implementation; operational logic remains unchanged.
+
 namespace DroneNavigation.QuadTree;
 
 using DroneNavigation.Geometry;
@@ -10,6 +13,7 @@ using DroneNavigation.Obstacles;
 // Design pattern: Facade. The complexity of recursion, subdivision, and node management
 // lives inside QuadTreeNode (which is internal — invisible to external code). Users of
 // this library only interact with QuadTree, keeping their code clean.
+// QuadTree groups related telemetry or navigation operations.
 public class QuadTree
 {
     public Rectangle Bounds { get; }
@@ -33,6 +37,7 @@ public class QuadTree
 
     // Inserts an obstacle into the tree. Throws if the obstacle's center is outside
     // the tree's bounds — obstacles outside the world don't belong in the data structure.
+    // Executes the Insert operation and retains existing input and error handling.
     public void Insert(Obstacle obstacle)
     {
         if (!Bounds.Contains(obstacle.Center))
@@ -45,6 +50,7 @@ public class QuadTree
 
     // Returns all obstacles whose centers fall within the given rectangle.
     // Allocates a fresh list each call — callers don't need to manage one themselves.
+    // Executes the Query operation and retains existing input and error handling.
     public List<Obstacle> Query(Rectangle range)
     {
         List<Obstacle> results = new List<Obstacle>();

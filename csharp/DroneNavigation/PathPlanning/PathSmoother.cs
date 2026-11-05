@@ -1,3 +1,6 @@
+// VENATOR SOURCE GUIDE: Removes unnecessary grid waypoints when a collision-free straight line exists.
+// Documentation-only update: existing executable statements and safety checks are unchanged.
+
 namespace DroneNavigation.PathPlanning;
 
 using DroneNavigation.Geometry;
@@ -17,8 +20,10 @@ using DroneNavigation.Geometry;
 //
 // Trade-off: O(n^2) in path length in the worst case (we may check every
 // pair). For drone-scale paths (dozens to hundreds of cells), this is fine.
+// PathSmoother: Removes unnecessary grid waypoints when a collision-free straight line exists.
 public static class PathSmoother
 {
+    // Attempts to replace short grid steps with longer unobstructed segments.
     public static List<Point> Smooth(Grid grid, List<Point> rawPath)
     {
         if (rawPath.Count <= 2) return new List<Point>(rawPath);
@@ -48,6 +53,7 @@ public static class PathSmoother
     // Returns true if a straight line from "from" to "to" passes only through
     // free grid cells. We sample the line at half-cell intervals — fine enough
     // to catch any blocked cell the line would enter.
+    // Checks each traversed grid cell for a blocked obstacle.
     private static bool HasLineOfSight(Grid grid, Point from, Point to)
     {
         double dx = to.X - from.X;

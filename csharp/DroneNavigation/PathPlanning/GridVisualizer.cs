@@ -1,3 +1,6 @@
+// VENATOR SOURCE GUIDE: Formats a grid and planned path for terminal-based demonstrations.
+// Documentation-only update: existing executable statements and safety checks are unchanged.
+
 namespace DroneNavigation.PathPlanning;
 
 using System.Text;
@@ -14,8 +17,10 @@ using DroneNavigation.Geometry;
 //   'S' or green  — start cell
 //   'G' or red    — goal cell
 //   '*' or blue   — cell on the planned path (other than start/goal)
+// GridVisualizer: Formats a grid and planned path for terminal-based demonstrations.
 public static class GridVisualizer
 {
+    // Implements ToAscii for this component; inputs and return values follow its declared signature.
     public static string ToAscii(Grid grid, List<Point>? path = null, Point? start = null, Point? goal = null)
     {
         // Build a set of path cells for O(1) lookup during render.
@@ -55,6 +60,7 @@ public static class GridVisualizer
         return sb.ToString();
     }
 
+    // Implements ToSvg for this component; inputs and return values follow its declared signature.
     public static string ToSvg(
         Grid grid,
         List<Point>? path = null,

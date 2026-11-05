@@ -1,3 +1,6 @@
+// VENATOR SOURCE GUIDE: Unit tests for route smoothing and line-of-sight rules.
+// Comments describe the existing implementation; operational logic remains unchanged.
+
 namespace DroneNavigation.Tests;
 
 using Xunit;
@@ -7,8 +10,10 @@ using DroneNavigation.PathPlanning;
 
 // Tests for the path smoother. The smoother takes a raw A* output and removes
 // redundant intermediate waypoints while preserving the path's safety.
+// PathSmootherTests groups related automated checks.
 public class PathSmootherTests
 {
+    // Executes the MakeEmptyGrid operation and retains existing input and error handling.
     private static Grid MakeEmptyGrid()
     {
         QuadTree.QuadTree obstacles = new QuadTree.QuadTree(new Rectangle(0, 0, 100, 100));
@@ -20,6 +25,7 @@ public class PathSmootherTests
     }
 
     [Fact]
+    // Executes the EmptyGrid_SmoothsToTwoWaypoints operation and retains existing input and error handling.
     public void EmptyGrid_SmoothsToTwoWaypoints()
     {
         // With no obstacles, A* will produce a long zigzag-ish path. Smoothing
@@ -34,6 +40,7 @@ public class PathSmootherTests
     }
 
     [Fact]
+    // Executes the SmoothedPath_StaysCollisionFree operation and retains existing input and error handling.
     public void SmoothedPath_StaysCollisionFree()
     {
         // Smoothing must never produce a path segment that crosses an obstacle.
@@ -75,6 +82,7 @@ public class PathSmootherTests
     }
 
     [Fact]
+    // Executes the SmoothedPath_HasFewerOrEqualWaypoints operation and retains existing input and error handling.
     public void SmoothedPath_HasFewerOrEqualWaypoints()
     {
         // Smoothing should never INCREASE the number of waypoints. Common sense,

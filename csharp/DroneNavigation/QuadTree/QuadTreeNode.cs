@@ -1,3 +1,6 @@
+// VENATOR SOURCE GUIDE: Recursive quadtree nodes and obstacle partition logic.
+// Comments describe the existing implementation; operational logic remains unchanged.
+
 namespace DroneNavigation.QuadTree;
 
 using DroneNavigation.Geometry;
@@ -9,6 +12,7 @@ using DroneNavigation.Obstacles;
 // appropriate child node based on their position. If the node is a leaf (no children),
 // then it stores obstacles directly. The quadtree subdivides nodes into four children
 // when they exceed a certain capacity of obstacles, allowing for efficient spatial queries.
+// QuadTreeNode groups related telemetry or navigation operations.
 internal class QuadTreeNode
 {
     public Rectangle Bounds { get; }
@@ -46,6 +50,7 @@ internal class QuadTreeNode
     //   Case 2: Leaf is full, can subdivide → subdivide, redistribute, then insert
     //   Case 3: Internal node               → delegate to the right child
     //   Case 4: Leaf at max depth           → just add it (safety net)
+    // Executes the Insert operation and retains existing input and error handling.
     public void Insert(Obstacle obstacle)
     {
         // Case 3: This is an internal node — delegate to the right child.
@@ -82,6 +87,7 @@ internal class QuadTreeNode
     // Creates the four child nodes by splitting this node's bounds in half along both axes.
     // Coordinate convention: Y increases UPWARD (math convention, not screen convention).
     // So "North" (NW, NE) is the upper half (higher Y), "South" (SW, SE) is the lower half.
+    // Executes the Subdivide operation and retains existing input and error handling.
     private void Subdivide()
     {
         double halfWidth = Bounds.Width / 2;
@@ -109,6 +115,7 @@ internal class QuadTreeNode
 
     // Returns the child quadrant that contains the given point, or null if no child does.
     // The short-circuit && ensures we never call .Bounds on a null reference.
+    // Executes the GetQuadrantFor operation and retains existing input and error handling.
     private QuadTreeNode? GetQuadrantFor(Point point)
     {
         if (NW != null && NW.Bounds.Contains(point)) return NW;
@@ -124,6 +131,7 @@ internal class QuadTreeNode
     //
     // The magic of the quadtree is the prune step on the first line: if our
     // bounds do not intersect the query range, we skip this entire subtree.
+    // Executes the Query operation and retains existing input and error handling.
     public void Query(Rectangle range, List<Obstacle> results)
     {
         if (!Bounds.Intersects(range))

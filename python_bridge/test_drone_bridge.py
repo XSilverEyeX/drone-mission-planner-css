@@ -1,3 +1,6 @@
+# VENATOR SOURCE GUIDE: Exercises bridge protocol, telemetry filtering, command gating, and recovery in hardware-free unit tests.
+# Documentation-only edit: runtime statements are preserved.
+
 """Hardware-free safety and PX4 packet regression tests."""
 import json
 import math
@@ -11,28 +14,38 @@ import drone_bridge as db
 
 M = db.M
 
+# Represents a synthetic MAVLink message for tests.
 class Message(SimpleNamespace):
+    # Handles get type for this module.
     def get_type(self): return self.kind
+    # Handles get src System for this module.
     def get_srcSystem(self): return getattr(self, 'source_system', 1)
+    # Handles get src Component for this module.
     def get_srcComponent(self): return getattr(self, 'source_component', 1)
 
+# Records outgoing MAVLink requests without flight hardware.
 class Wire:
+    # Initializes the instance and its connection or UI state.
     def __init__(self, bridge):
         self.bridge = bridge
         self.sent = []
         self.result = M.MAV_RESULT_ACCEPTED
         self.no_ack = set()
+    # Handles command long send for this module.
     def command_long_send(self, *args):
         self.sent.append(('long', args))
         self.ack(args[2])
+    # Handles command int send for this module.
     def command_int_send(self, *args):
         self.sent.append(('int', args))
         self.ack(args[3])
+    # Handles ack for this module.
     def ack(self, command):
         if command not in self.no_ack:
             self.bridge.ingest(Message(kind='COMMAND_ACK', command=command, result=self.result, target_system=255, target_component=190))
 
 
+# Creates a deterministic bridge state for a unit test.
 def fixture(armed=False, airborne=False):
     b = db.DroneBridge()
     b.master = SimpleNamespace(mav=Wire(b), close=lambda: None)
@@ -52,7 +65,9 @@ def fixture(armed=False, airborne=False):
     for msg in messages: b.ingest(msg)
     return b
 
+# Groups the Safety Tests behavior used by this module.
 class SafetyTests(unittest.TestCase):
+    # Verifies startup and read only never arm using simulated bridge inputs.
     def test_startup_and_read_only_never_arm(self):
         b = db.DroneBridge()
         self.assertFalse(b.status()['connected'])
@@ -62,6 +77,7 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(b.master.mav.sent, [])
         self.assertFalse(b.status()['demoEnabled'])
 
+    # Verifies confirmation and unknown preflight fail closed using simulated bridge inputs.
     def test_confirmation_and_unknown_preflight_fail_closed(self):
         b = fixture()
         self.assertTrue(b.status()['preflightReady'])
@@ -70,6 +86,7 @@ class SafetyTests(unittest.TestCase):
         self.assertFalse(b.status()['preflightReady'])
         self.assertEqual(b.handle({'cmd':'enable_demo', 'enabled':True, 'confirmed':True})['status'], 'error')
 
+    # Verifies invalid gps and estimator block navigation using simulated bridge inputs.
     def test_invalid_gps_and_estimator_block_navigation(self):
         b = fixture(True, True)
         b.enabled = True
@@ -81,6 +98,7 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(b.handle({'cmd':'goto','lat':41,'lon':-87,'altitude':2})['status'], 'error')
         self.assertEqual(b.master.mav.sent, [])
 
+    # Verifies stale telemetry blocks arm using simulated bridge inputs.
     def test_stale_telemetry_blocks_arm(self):
         b = fixture()
         b.enabled = True
@@ -90,6 +108,7 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(b.handle({'cmd':'arm'})['status'], 'error')
         self.assertEqual(b.master.mav.sent, [])
 
+    # Verifies foreign messages and acks are ignored using simulated bridge inputs.
     def test_foreign_messages_and_acks_are_ignored(self):
         b = fixture()
         b.ingest(Message(kind='GLOBAL_POSITION_INT', source_system=2, lat=0, lon=0))
@@ -97,6 +116,7 @@ class SafetyTests(unittest.TestCase):
         b.ingest(Message(kind='COMMAND_ACK', command=400, result=0, target_system=42))
         self.assertEqual(len(b.acks), 0)
 
+    # Verifies arm does not force or assume state using simulated bridge inputs.
     def test_arm_does_not_force_or_assume_state(self):
         b = fixture()
         b.enabled = True
@@ -108,6 +128,7 @@ class SafetyTests(unittest.TestCase):
         self.assertFalse(b.status()['armed'])
         self.assertFalse(b.status()['canTakeoff'])
 
+    # Verifies takeoff amsl and user altitude using simulated bridge inputs.
     def test_takeoff_amsl_and_user_altitude(self):
         b = fixture(True)
         b.enabled = True
@@ -119,6 +140,7 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(b.handle({'cmd':'takeoff','altitude':float('nan')})['status'], 'error')
         self.assertEqual(b.handle({'cmd':'takeoff','altitude':10})['status'], 'error')
 
+    # Verifies goto uses px4 command int amsl and radius using simulated bridge inputs.
     def test_goto_uses_px4_command_int_amsl_and_radius(self):
         b = fixture(True, True)
         b.enabled = True
@@ -131,6 +153,7 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(b.handle({'cmd':'goto','lat':42,'lon':-87,'altitude':2})['status'], 'error')
         self.assertEqual(len(b.master.mav.sent), count)
 
+    # Verifies yaw is radians and keeps current position using simulated bridge inputs.
     def test_yaw_is_radians_and_keeps_current_position(self):
         b = fixture(True, True)
         b.enabled = True
@@ -139,6 +162,7 @@ class SafetyTests(unittest.TestCase):
         self.assertAlmostEqual(args[9], math.pi/2)
         self.assertEqual(args[-3:], (410000000, -870000000, 205))
 
+    # Verifies hold is px4 auto loiter using simulated bridge inputs.
     def test_hold_is_px4_auto_loiter(self):
         b = fixture(True, True)
         b.enabled = True
@@ -147,6 +171,7 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(args[2], M.MAV_CMD_DO_SET_MODE)
         self.assertEqual(args[4:7], (M.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED, 4, 3))
 
+    # Verifies land works when gps and normal controls fail using simulated bridge inputs.
     def test_land_works_when_gps_and_normal_controls_fail(self):
         b = fixture(True, True)
         del b.messages['GPS_RAW_INT']
@@ -156,6 +181,7 @@ class SafetyTests(unittest.TestCase):
         self.assertTrue(b.status()['armed'])
         self.assertEqual(b.handle({'cmd':'disarm'})['status'], 'error')
 
+    # Verifies abort interrupts navigation ack wait using simulated bridge inputs.
     def test_abort_interrupts_navigation_ack_wait(self):
         b = fixture(True, True)
         b.enabled = True
@@ -174,6 +200,7 @@ class SafetyTests(unittest.TestCase):
         self.assertFalse(worker.is_alive())
         self.assertFalse(b.enabled)
 
+    # Verifies command rejection is visible using simulated bridge inputs.
     def test_command_rejection_is_visible(self):
         b = fixture()
         b.enabled = True
@@ -181,6 +208,7 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(b.handle({'cmd':'arm'})['status'], 'error')
         self.assertEqual(b.last_command['result'], 'MAV_RESULT_DENIED')
 
+    # Verifies missing home blocks home relative navigation using simulated bridge inputs.
     def test_missing_home_blocks_home_relative_navigation(self):
         b = fixture(True, True)
         b.enabled = True
@@ -188,6 +216,7 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual(b.handle({'cmd':'goto','lat':41,'lon':-87,'altitude':2})['status'], 'error')
         self.assertEqual(b.master.mav.sent, [])
 
+    # Verifies disconnect requires fresh disarmed state using simulated bridge inputs.
     def test_disconnect_requires_fresh_disarmed_state(self):
         b = fixture(True)
         self.assertEqual(b.handle({'cmd':'disconnect'})['status'], 'error')
@@ -196,6 +225,7 @@ class SafetyTests(unittest.TestCase):
         self.assertIsNone(b.master)
         self.assertIsNone(b.reference)
 
+    # Verifies tcp protocol no hardware using simulated bridge inputs.
     def test_tcp_protocol_no_hardware(self):
         b = fixture()
         with patch.object(db, 'bridge', b), db.Server(('127.0.0.1', 0), db.Handler) as server:
@@ -215,7 +245,9 @@ class SafetyTests(unittest.TestCase):
 
 
 
+# Groups the Recovery Tests behavior used by this module.
 class RecoveryTests(unittest.TestCase):
+    # Verifies reboot invalidates safety state and origin using simulated bridge inputs.
     def test_reboot_invalidates_safety_state_and_origin(self):
         b=fixture(True,True)
         b.enabled=True
@@ -227,6 +259,7 @@ class RecoveryTests(unittest.TestCase):
         self.assertIsNone(b.reference)
         self.assertNotIn('HOME_POSITION',b.messages)
 
+    # Verifies ack timeout locks controls and does not retry using simulated bridge inputs.
     def test_ack_timeout_locks_controls_and_does_not_retry(self):
         b=fixture()
         b.enabled=True
@@ -237,10 +270,12 @@ class RecoveryTests(unittest.TestCase):
         self.assertFalse(b.enabled)
         self.assertEqual(len(b.master.mav.sent),1)
 
+    # Verifies progress ack is not final acceptance using simulated bridge inputs.
     def test_progress_ack_is_not_final_acceptance(self):
         b=fixture()
         b.enabled=True
         b.master.mav.result=M.MAV_RESULT_IN_PROGRESS
+        # Handles finish for this module.
         def finish():
             time.sleep(.05)
             b.ingest(Message(kind='COMMAND_ACK',command=400,result=M.MAV_RESULT_ACCEPTED,target_system=255,target_component=190))
@@ -254,12 +289,15 @@ class RecoveryTests(unittest.TestCase):
 
 
 
+# Groups the Connection Tests behavior used by this module.
 class ConnectionTests(unittest.TestCase):
+    # Verifies gui selected port only and telemetry only startup using simulated bridge inputs.
     def test_gui_selected_port_only_and_telemetry_only_startup(self):
         b=db.DroneBridge()
         seed=fixture()
         incoming=[m for _,m in seed.messages.values()]
         closed=[]
+        # Receives MAVLink packets and dispatches them into the state cache.
         def receive(**kwargs):
             if incoming: return incoming.pop(0)
             time.sleep(.005)
@@ -277,11 +315,13 @@ class ConnectionTests(unittest.TestCase):
             self.assertEqual(b.handle({'cmd':'disconnect'})['status'],'ok')
         self.assertTrue(closed)
 
+    # Verifies no px4 heartbeat cleans up and allows new attempt using simulated bridge inputs.
     def test_no_px4_heartbeat_cleans_up_and_allows_new_attempt(self):
         b=db.DroneBridge()
         closed=[]
         wire=Wire(b)
         wire.heartbeat_send=lambda *args: None
+        # Receives MAVLink packets and dispatches them into the state cache.
         def receive(**kwargs):
             time.sleep(.005)
             return Message(kind='HEARTBEAT',autopilot=M.MAV_AUTOPILOT_INVALID,type=M.MAV_TYPE_GCS)
@@ -296,13 +336,16 @@ class ConnectionTests(unittest.TestCase):
 
 
 
+# Groups the Bench Tests behavior used by this module.
 class BenchTests(unittest.TestCase):
+    # Verifies offboard apply does not arm or disarm using simulated bridge inputs.
     def test_offboard_apply_does_not_arm_or_disarm(self):
         b=fixture()
         b.worker=SimpleNamespace(is_alive=lambda:True)
         b.ingest(Message(kind='ATTITUDE',roll=0,pitch=0,yaw=0))
         wire=b.master.mav
         original=wire.command_long_send
+        # Sends a command or simulated response through the active test/bridge transport.
         def send(*args):
             original(*args)
             hb=b.messages['HEARTBEAT'][1]
@@ -317,6 +360,7 @@ class BenchTests(unittest.TestCase):
         self.assertTrue(all(a[2]==M.MAV_CMD_DO_SET_MODE for _,a in wire.sent))
 
 
+    # Verifies mode selection requires disarmed ground and position using simulated bridge inputs.
     def test_mode_selection_requires_disarmed_ground_and_position(self):
         b=fixture(armed=True)
         self.assertEqual(b.handle({'cmd':'set_mode','mode':'stabilized'})['status'],'error')
@@ -326,10 +370,12 @@ class BenchTests(unittest.TestCase):
         self.assertEqual(b.handle({'cmd':'set_mode','mode':'offboard'})['status'],'error')
         self.assertEqual(b.master.mav.sent,[])
 
+    # Verifies mode selection verifies observed heartbeat using simulated bridge inputs.
     def test_mode_selection_verifies_observed_heartbeat(self):
         b=fixture()
         wire=b.master.mav
         original=wire.command_long_send
+        # Sends a command or simulated response through the active test/bridge transport.
         def send(*args):
             original(*args)
             hb=b.messages['HEARTBEAT'][1]
@@ -341,22 +387,26 @@ class BenchTests(unittest.TestCase):
         self.assertFalse(b.enabled)
 
 
+    # Verifies offboard confirmation and attitude required using simulated bridge inputs.
     def test_offboard_confirmation_and_attitude_required(self):
         b=fixture()
         self.assertEqual(b.handle({'cmd':'offboard_bench'})['status'],'error')
         self.assertEqual(b.handle({'cmd':'offboard_bench','propsOffConfirmed':True})['status'],'error')
         self.assertEqual(b.master.mav.sent,[])
 
+    # Verifies offboard zero thrust sequence and cleanup using simulated bridge inputs.
     def test_offboard_zero_thrust_sequence_and_cleanup(self):
         b=fixture()
         b.ingest(Message(kind='ATTITUDE',roll=0,pitch=0,yaw=0))
         wire=b.master.mav
         targets=[]
+        # Handles target for this module.
         def target(*args):
             targets.append(args)
             for _, msg in list(b.messages.values()): b.ingest(msg)
         wire.set_attitude_target_send=target
         original=wire.command_long_send
+        # Sends a command or simulated response through the active test/bridge transport.
         def send(*args):
             original(*args)
             hb=b.messages['HEARTBEAT'][1]
@@ -374,6 +424,7 @@ class BenchTests(unittest.TestCase):
         self.assertEqual([a[4:6] for _,a in wire.sent if a[2]==M.MAV_CMD_COMPONENT_ARM_DISARM],[(1,0),(0,0)])
 
 
+    # Verifies failed serial connection can be released using simulated bridge inputs.
     def test_failed_serial_connection_can_be_released(self):
         b=fixture()
         b.link_error='Serial device removed'
@@ -384,6 +435,7 @@ class BenchTests(unittest.TestCase):
         self.assertIsNone(b.master)
 
 
+    # Verifies props off arm without gps keeps navigation locked using simulated bridge inputs.
     def test_props_off_arm_without_gps_keeps_navigation_locked(self):
         b=fixture()
         b.messages['GPS_RAW_INT'][1].fix_type=0
@@ -393,17 +445,20 @@ class BenchTests(unittest.TestCase):
         self.assertFalse(b.enabled)
         self.assertFalse(b.status()['canTakeoff'])
 
+    # Verifies props off arm rejects unknown ground state using simulated bridge inputs.
     def test_props_off_arm_rejects_unknown_ground_state(self):
         b=fixture()
         b.messages.pop('EXTENDED_SYS_STATE')
         self.assertEqual(b.handle({'cmd':'arm','propsOffConfirmed':True})['status'],'error')
         self.assertEqual(b.master.mav.sent,[])
 
+    # Verifies bench requires props confirmation using simulated bridge inputs.
     def test_bench_requires_props_confirmation(self):
         b=fixture()
         self.assertEqual(b.handle({'cmd':'bench_arm'})['status'],'error')
         self.assertEqual(b.master.mav.sent,[])
 
+    # Verifies bench rejection is normal not forced and leaves flight locked using simulated bridge inputs.
     def test_bench_rejection_is_normal_not_forced_and_leaves_flight_locked(self):
         b=fixture()
         b.messages['GPS_RAW_INT'][1].fix_type=0
@@ -413,11 +468,13 @@ class BenchTests(unittest.TestCase):
         self.assertEqual(b.master.mav.sent[0][1][4:6],(1,0))
         self.assertFalse(b.enabled)
 
+    # Verifies bench observes arming then disarms using simulated bridge inputs.
     def test_bench_observes_arming_then_disarms(self):
         b=fixture()
         b.messages['GPS_RAW_INT'][1].fix_type=0
         wire=b.master.mav
         original=wire.command_long_send
+        # Sends a command or simulated response through the active test/bridge transport.
         def send(*args):
             original(*args)
             if args[2]==M.MAV_CMD_COMPONENT_ARM_DISARM:
@@ -434,13 +491,16 @@ class BenchTests(unittest.TestCase):
 
 
 
+# Groups the Range Tests behavior used by this module.
 class RangeTests(unittest.TestCase):
+    # Verifies downward range is converted to meters using simulated bridge inputs.
     def test_downward_range_is_converted_to_meters(self):
         b=fixture()
         b.ingest(Message(kind='DISTANCE_SENSOR',id=0,orientation=M.MAV_SENSOR_ROTATION_PITCH_270,min_distance=10,max_distance=800,current_distance=125))
         self.assertEqual(b.status()['downwardDistance'],1.25)
         b.ingest(Message(kind='DISTANCE_SENSOR',id=1,orientation=M.MAV_SENSOR_ROTATION_NONE,min_distance=10,max_distance=800,current_distance=300))
         self.assertEqual(b.status()['downwardDistance'],1.25)
+    # Verifies invalid or stale range is unknown using simulated bridge inputs.
     def test_invalid_or_stale_range_is_unknown(self):
         b=fixture()
         msg=Message(kind='DISTANCE_SENSOR',id=0,orientation=M.MAV_SENSOR_ROTATION_PITCH_270,min_distance=10,max_distance=800,current_distance=900)
@@ -449,6 +509,7 @@ class RangeTests(unittest.TestCase):
         msg.current_distance=100; b.ingest(msg)
         t,m=b.distance_sources[0];b.distance_sources[0]=(t-10,m)
         self.assertIsNone(b.status()['downwardDistance'])
+    # Verifies range never unlocks gps flight using simulated bridge inputs.
     def test_range_never_unlocks_gps_flight(self):
         b=fixture()
         b.messages['GPS_RAW_INT'][1].fix_type=0
@@ -457,4 +518,5 @@ class RangeTests(unittest.TestCase):
         self.assertFalse(b.status()['canTakeoff'])
         self.assertFalse(b.status()['canNavigate'])
 
+# Only start the script or test runner when executed directly.
 if __name__ == '__main__': unittest.main()

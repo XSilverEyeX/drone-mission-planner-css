@@ -1,3 +1,6 @@
+// VENATOR SOURCE GUIDE: Defines ASP.NET API endpoints and coordinates web requests with the local Python/PX4 bridge.
+// Documentation-only update: existing executable statements and safety checks are unchanged.
+
 using System.Text.Json;
 using DroneNavigation.Drone;
 using DroneNavigation.Geometry;
@@ -66,6 +69,7 @@ const double SafetyBufferMeters = 3.0;
 
 // Receives the obstacles, start, goal, and altitude from the GUI
 // and calculates a safe path using the A* path planner
+// HTTP endpoint /api/plan: handles a GUI/API request without bypassing bridge safeguards.
 app.MapPost("/api/plan", (PlanRequest req) =>
 {
 
@@ -201,6 +205,7 @@ IResult Relay(DroneClient client, object command)
         return Results.Json(new { status = "error", message = $"Bridge unavailable or response lost; command outcome may be unknown: {ex.Message}" }, statusCode: 503);
     }
 }
+// HTTP endpoint /api/telemetry/ports: handles a GUI/API request without bypassing bridge safeguards.
 app.MapGet("/api/telemetry/ports", (DroneClient client) =>
 {
     try
@@ -210,21 +215,29 @@ app.MapGet("/api/telemetry/ports", (DroneClient client) =>
     }
     catch (Exception ex) { return Results.Ok(new { success = false, ports = Array.Empty<object>(), message = ex.Message }); }
 });
+// HTTP endpoint /api/status: handles a GUI/API request without bypassing bridge safeguards.
 app.MapGet("/api/status", (DroneClient client) =>
 {
     try { return Results.Ok(client.GetStatus().Data); }
     catch (Exception ex) { return Results.Ok(new { connected = false, radioConnected = false, blockers = new[] { "Python bridge unavailable" }, message = ex.Message }); }
 });
+// HTTP endpoint /api/telemetry/connect: handles a GUI/API request without bypassing bridge safeguards.
 app.MapPost("/api/telemetry/connect", (ConnectionRequest req, DroneClient client) => Relay(client, new { cmd = "connect", port = req.Port, baud = req.Baud }));
+// HTTP endpoint /api/telemetry/disconnect: handles a GUI/API request without bypassing bridge safeguards.
 app.MapPost("/api/telemetry/disconnect", (DroneClient client) => Relay(client, new { cmd = "disconnect" }));
+// HTTP endpoint /api/demo/enable: handles a GUI/API request without bypassing bridge safeguards.
 app.MapPost("/api/demo/enable", (DemoEnableRequest req, DroneClient client) => Relay(client, new { cmd = "enable_demo", enabled = req.Enabled, confirmed = req.Confirmed }));
+// HTTP endpoint /api/demo/{action}: handles a GUI/API request without bypassing bridge safeguards.
 app.MapPost("/api/demo/{action}", (string action, DemoRequest req, DroneClient client) =>
 {
     if (!new[] { "arm", "disarm", "takeoff", "hold", "goto", "yaw", "land", "abort", "bench_arm", "offboard_bench", "set_mode" }.Contains(action))
         return Results.BadRequest(new { status = "error", message = "Unknown demo action" });
     return Relay(client, new { cmd = action, mode = req.Mode, altitude = req.Altitude, lat = req.Lat, lon = req.Lon, heading = req.Heading, propsOffConfirmed = req.PropsOffConfirmed });
 });
+// HTTP endpoint /api/abort: handles a GUI/API request without bypassing bridge safeguards.
 app.MapPost("/api/abort", (DroneClient client) => Relay(client, new { cmd = "abort" }));
+// HTTP endpoint /api/fly: handles a GUI/API request without bypassing bridge safeguards.
 app.MapPost("/api/fly", () => Results.BadRequest(new { status = "error", message = "Automatic planner execution is disabled. Review the planned path and use the gated demo controls." }));
+// HTTP endpoint /api/health: handles a GUI/API request without bypassing bridge safeguards.
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", timestamp = DateTime.UtcNow }));
 app.Run();

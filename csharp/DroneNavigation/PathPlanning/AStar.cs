@@ -1,3 +1,6 @@
+// VENATOR SOURCE GUIDE: Finds obstacle-aware grid paths using A* search and reconstructs world-space waypoints.
+// Documentation-only update: existing executable statements and safety checks are unchanged.
+
 namespace DroneNavigation.PathPlanning;
 
 using DroneNavigation.Geometry;
@@ -21,6 +24,7 @@ using DroneNavigation.Geometry;
 //
 // Returns a list of cell-center world points from start to goal, INCLUSIVE.
 // Returns an empty list if no path exists.
+// AStar: Finds obstacle-aware grid paths using A* search and reconstructs world-space waypoints.
 public static class AStar
 {
     // Cost of a single cardinal (N/S/E/W) move.
@@ -32,6 +36,7 @@ public static class AStar
     // The 8 neighbor offsets: (col delta, row delta, move cost).
     // Cardinals first, diagonals second — slightly favors straighter paths
     // when costs tie, by virtue of being examined first.
+    // Implements readonly for this component; inputs and return values follow its declared signature.
     private static readonly (int dc, int dr, double cost)[] Neighbors = new[]
     {
         ( 0,  1, CardinalCost),   // N
@@ -44,6 +49,7 @@ public static class AStar
         (-1, -1, DiagonalCost),   // SW
     };
 
+    // Searches from the start cell to the goal cell and returns a grid-safe route.
     public static List<Point> FindPath(Grid grid, Point startWorld, Point goalWorld)
     {
         // Convert world coordinates to grid cells, bailing out if either is off-grid
@@ -120,6 +126,7 @@ public static class AStar
     //   max(|dx|, |dy|) cardinal steps along the longer axis,
     //   plus (sqrt(2) - 1) * min(|dx|, |dy|) extra for the diagonal portion.
     // Equivalent formulation: take min(|dx|,|dy|) diagonals and (max - min) cardinals.
+    // Estimates remaining path cost for A* priority ordering.
     private static double Heuristic(int col, int row, int goalCol, int goalRow)
     {
         int dx = Math.Abs(col - goalCol);
@@ -130,6 +137,7 @@ public static class AStar
 
     // Walks the cameFrom chain backward from the goal to rebuild the path,
     // then reverses it so it reads start-to-goal.
+    // Backtracks parent links into a waypoint list.
     private static List<Point> ReconstructPath(
         Grid grid,
         Dictionary<(int, int), (int, int)> cameFrom,

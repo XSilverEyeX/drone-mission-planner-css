@@ -1,3 +1,6 @@
+# VENATOR SOURCE GUIDE: Opens the existing HTML dashboard in a PyQt desktop window; the browser-based interface remains the source of GUI behavior.
+# Documentation-only edit: runtime statements are preserved.
+
 """
 VENATOR Ground Control Station
 Desktop GUI Launcher
@@ -38,8 +41,10 @@ INDEX_FILE = (
 # VENATOR WINDOW
 # ============================================================
 
+# Defines the desktop window that hosts the browser view.
 class VenatorWindow(QMainWindow):
 
+    # Initializes the instance and its connection or UI state.
     def __init__(self):
         super().__init__()
 
@@ -83,6 +88,7 @@ class VenatorWindow(QMainWindow):
 # START APPLICATION
 # ============================================================
 
+# Initializes the application and starts its event loop.
 def main():
 
     print(
@@ -110,5 +116,6 @@ def main():
 # RUN
 # ============================================================
 
+# Only start the script or test runner when executed directly.
 if __name__ == "__main__":
     sys.exit(main())

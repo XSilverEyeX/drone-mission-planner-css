@@ -1,3 +1,6 @@
+# VENATOR SOURCE GUIDE: Receives MAVLink telemetry from PX4 and answers local JSON/TCP requests; PX4 checks, command acknowledgments, and safety gates remain authoritative.
+# Documentation-only edit: runtime statements are preserved.
+
 """VENATOR local JSON/TCP bridge. Starts disconnected; no automatic flight actions.
 
 One receiver owns MAVLink reads. Flight commands are acknowledged, never treated
@@ -21,10 +24,12 @@ MAX_ALTITUDE_M = 5.0
 MAX_DISTANCE_M = 30.0
 
 
+# Builds a consistent status, message, and data reply.
 def response(status, message='', data=None):
     return dict(status=status, message=message, data=data)
 
 
+# Validates a finite numeric input against its allowed bounds.
 def number(value, name, minimum, maximum):
     if isinstance(value, bool):
         raise ValueError(f'{name} must be a number')
@@ -34,6 +39,7 @@ def number(value, name, minimum, maximum):
     return value
 
 
+# Calculates the great-circle distance between two geographic coordinates.
 def distance(a, b):
     lat1, lat2 = math.radians(a[0]), math.radians(b[0])
     dlat, dlon = lat2-lat1, math.radians(b[1]-a[1])
@@ -41,7 +47,9 @@ def distance(a, b):
     return 6378137 * 2 * math.asin(math.sqrt(min(1, h)))
 
 
+# Maintains a single stateful connection to the PX4 MAVLink source.
 class DroneBridge:
+    # Initializes the instance and its connection or UI state.
     def __init__(self):
         self.lock = threading.RLock()
         self.operation = threading.Lock()
@@ -53,6 +61,7 @@ class DroneBridge:
         self.stop = threading.Event()
         self.reset()
 
+    # Clears cached session state and command acknowledgments.
     def reset(self):
         self.session_id = uuid.uuid4().hex
         self.messages = {}
@@ -71,10 +80,12 @@ class DroneBridge:
         self.reference = None
         self.reference_source = None
 
+    # Returns telemetry only when its age is below the freshness limit.
     def fresh(self, kind):
         item = self.messages.get(kind)
         return item[1] if item and time.monotonic()-item[0] < FRESH_SECONDS else None
 
+    # Filters incoming MAVLink messages and updates synchronized telemetry caches.
     def ingest(self, msg):
         kind = msg.get_type()
         if kind == 'BAD_DATA':
@@ -118,6 +129,7 @@ class DroneBridge:
                 self.logs.append(str(msg.text).rstrip('\x00'))
             self.condition.notify_all()
 
+    # Receives MAVLink packets and dispatches them into the state cache.
     def receive(self):
         last_heartbeat = 0
         try:
@@ -144,6 +156,7 @@ class DroneBridge:
                 self.link_error = str(exc)
                 self.enabled = False
 
+    # Releases the MAVLink connection and resets related state.
     def close(self):
         self.stop.set()
         if self.worker:
@@ -157,6 +170,7 @@ class DroneBridge:
         with self.lock:
             self.reset()
 
+    # Opens a user-selected serial connection and verifies PX4 communication.
     def connect(self, port, baud):
         if self.master:
             raise ValueError('Disconnect the current telemetry session first')
@@ -186,6 +200,7 @@ class DroneBridge:
             self.close()
             raise
 
+    # Constructs the current status snapshot from fresh telemetry.
     def status(self):
         with self.lock:
             hb, gps, pos = self.fresh('HEARTBEAT'), self.fresh('GPS_RAW_INT'), self.fresh('GLOBAL_POSITION_INT')
@@ -308,10 +323,12 @@ class DroneBridge:
                 altitude=pos.relative_alt/1000 if position_valid else None, altitudeAmsl=pos.alt/1000 if position_valid else None)
             return result
 
+    # Transmits a MAVLink COMMAND_LONG packet without bypassing PX4 checks.
     def send_long(self, command, params):
         with self.wire:
             self.master.mav.command_long_send(self.system, self.component, command, 0, *(params+[0]*(7-len(params))))
 
+    # Waits for command acknowledgement and reports rejection or timeout.
     def acknowledged(self, command, send, require_enabled=True):
         with self.lock:
             if require_enabled and not self.enabled:
@@ -338,13 +355,16 @@ class DroneBridge:
         self.last_command = dict(command=command, accepted=None, result='UNKNOWN')
         return response('error', 'No final ACK: outcome unknown. Controls locked; inspect telemetry before retrying.', self.last_command)
 
+    # Builds a MAVLink reposition request using validated coordinates and altitude.
     def reposition(self, lat, lon, amsl, yaw=float('nan')):
+        # Sends a command or simulated response through the active test/bridge transport.
         def send():
             with self.wire:
                 self.master.mav.command_int_send(self.system, self.component, M.MAV_FRAME_GLOBAL_INT,
                     M.MAV_CMD_DO_REPOSITION, 0, 0, 1.0, 1, 0, yaw, round(lat*1e7), round(lon*1e7), amsl)
         return self.acknowledged(M.MAV_CMD_DO_REPOSITION, send)
 
+    # Processes a local command request and returns a structured reply.
     def handle(self, req):
         cmd = req.get('cmd')
         if cmd == 'get_ports':
@@ -541,7 +561,9 @@ class DroneBridge:
 bridge = DroneBridge()
 
 
+# Serves individual JSON/TCP requests on the local bridge.
 class Handler(socketserver.StreamRequestHandler):
+    # Processes a local command request and returns a structured reply.
     def handle(self):
         self.request.settimeout(30)
         while True:
@@ -559,11 +581,13 @@ class Handler(socketserver.StreamRequestHandler):
             self.wfile.flush()
 
 
+# Configures a threading TCP server for local command handling.
 class Server(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
 
+# Only start the script or test runner when executed directly.
 if __name__ == '__main__':
     print('[bridge] Listening on 127.0.0.1:5555; select telemetry port in VENATOR. Props off for bench tests.')
     try:

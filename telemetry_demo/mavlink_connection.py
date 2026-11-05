@@ -1,3 +1,6 @@
+# VENATOR SOURCE GUIDE: Serial-port selection and read-only MAVLink telemetry helper.
+# Comments describe the existing implementation; operational logic remains unchanged.
+
 """
 VENATOR Telemetry Demo
 mavlink_connection.py
@@ -13,9 +16,11 @@ import serial.tools.list_ports
 import time
 
 
+# MAVLinkConnection groups related telemetry or navigation operations.
 class MAVLinkConnection:
     """Handles the SiK radio / Pixhawk MAVLink connection."""
 
+    # Executes the __init__ operation and retains existing input and error handling.
     def __init__(self):
         self.master = None
         self.port = None
@@ -27,6 +32,7 @@ class MAVLinkConnection:
     # ---------------------------------------------------------
 
     @staticmethod
+    # Executes the get_serial_ports operation and retains existing input and error handling.
     def get_serial_ports():
         """Return all serial/COM ports currently detected by Windows."""
 
@@ -44,6 +50,7 @@ class MAVLinkConnection:
     # CONNECTION
     # ---------------------------------------------------------
 
+    # Executes the connect operation and retains existing input and error handling.
     def connect(self, port, baud=57600, heartbeat_timeout=10):
         """
         Open the selected COM port and wait for a MAVLink heartbeat.
@@ -111,11 +118,13 @@ class MAVLinkConnection:
     # STATUS
     # ---------------------------------------------------------
 
+    # Executes the is_radio_connected operation and retains existing input and error handling.
     def is_radio_connected(self):
         """True when a MAVLink serial connection object exists."""
 
         return self.master is not None
 
+    # Executes the heartbeat_age operation and retains existing input and error handling.
     def heartbeat_age(self):
         """Return the number of seconds since the last known heartbeat."""
 
@@ -128,6 +137,7 @@ class MAVLinkConnection:
     # POSITION
     # ---------------------------------------------------------
 
+    # Executes the get_position operation and retains existing input and error handling.
     def get_position(self, timeout=2):
         """Request the most recent GPS/global position message."""
 
@@ -153,6 +163,7 @@ class MAVLinkConnection:
     # DISCONNECT
     # ---------------------------------------------------------
 
+    # Executes the disconnect operation and retains existing input and error handling.
     def disconnect(self):
         """Close the serial connection."""
 

@@ -1,9 +1,13 @@
+# VENATOR SOURCE GUIDE: Runs a bounded, zero-thrust Offboard bench routine for controlled props-off checks; not a position-hold flight controller.
+# Documentation-only edit: runtime statements are preserved.
+
 """Bounded props-off Offboard bench sequence. Never requests positive thrust."""
 import threading
 import time
 from drone_bridge import M, response
 
 
+# Executes a short Offboard bench routine with safe state checks.
 def run(b, req):
     state = b.status()
     if req.get('propsOffConfirmed') is not True or not state['connected'] or state['armed'] or state['landedState'] != M.MAV_LANDED_STATE_ON_GROUND or not b.fresh('ATTITUDE'):
@@ -14,6 +18,7 @@ def run(b, req):
     stream_error = []
     stream_started = time.monotonic()
 
+    # Periodically sends the required attitude setpoint stream.
     def stream():
         try:
             while not stopped.is_set() and time.monotonic()-stream_started < 25:
@@ -25,6 +30,7 @@ def run(b, req):
         except Exception as exc:
             stream_error.append(str(exc))
 
+    # Checks observed telemetry state for the allotted interval.
     def observed(predicate, seconds=2):
         deadline = time.monotonic()+seconds
         with b.condition:

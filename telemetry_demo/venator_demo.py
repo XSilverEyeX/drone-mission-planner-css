@@ -1,3 +1,6 @@
+# VENATOR SOURCE GUIDE: Interactive console telemetry demonstration.
+# Comments describe the existing implementation; operational logic remains unchanged.
+
 """
 VENATOR Telemetry Demo
 venator_demo.py
@@ -9,6 +12,7 @@ Computer -> SiK Radio -> SiK Radio -> Pixhawk
 from mavlink_connection import MAVLinkConnection
 
 
+# Executes the print_header operation and retains existing input and error handling.
 def print_header():
     """Display the VENATOR demo title."""
 
@@ -17,6 +21,7 @@ def print_header():
     print("=" * 50)
 
 
+# Executes the select_port operation and retains existing input and error handling.
 def select_port(connection):
     """Find COM ports and allow the user to select one."""
 
@@ -56,6 +61,7 @@ def select_port(connection):
         print("Invalid selection. Try again.")
 
 
+# Executes the telemetry_menu operation and retains existing input and error handling.
 def telemetry_menu(connection):
     """Menu shown after a Pixhawk connection is established."""
 
@@ -175,6 +181,7 @@ def telemetry_menu(connection):
             print("Invalid command.")
 
 
+# Executes the main operation and retains existing input and error handling.
 def main():
     """Main VENATOR telemetry demo."""
 

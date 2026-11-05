@@ -1,3 +1,6 @@
+// VENATOR SOURCE GUIDE: Unit tests for path search, blocked grids, and waypoint reconstruction.
+// Comments describe the existing implementation; operational logic remains unchanged.
+
 namespace DroneNavigation.Tests;
 
 using Xunit;
@@ -8,6 +11,7 @@ using DroneNavigation.PathPlanning;
 // Tests for the A* path planner. Each test sets up a small world with obstacles,
 // runs FindPath, and verifies the returned path obeys the rules: starts at start,
 // ends at goal, never crosses a blocked cell, and is empty when no path exists.
+// AStarTests groups related automated checks.
 public class AStarTests
 {
     // A standard test world: 100m x 100m, cells of 5m (so 20x20 grid), drone at 20m altitude.
@@ -17,6 +21,7 @@ public class AStarTests
         return new QuadTree.QuadTree(new Rectangle(0, 0, 100, 100));
     }
 
+    // Executes the MakeGrid operation and retains existing input and error handling.
     private static Grid MakeGrid(QuadTree.QuadTree obstacles)
     {
         return new Grid(
@@ -27,6 +32,7 @@ public class AStarTests
     }
 
     [Fact]
+    // Executes the EmptyWorld_ReturnsDirectPath operation and retains existing input and error handling.
     public void EmptyWorld_ReturnsDirectPath()
     {
         Grid grid = MakeGrid(MakeEmptyWorld());
@@ -47,6 +53,7 @@ public class AStarTests
     }
 
     [Fact]
+    // Executes the StartEqualsGoal_ReturnsSingleCellPath operation and retains existing input and error handling.
     public void StartEqualsGoal_ReturnsSingleCellPath()
     {
         Grid grid = MakeGrid(MakeEmptyWorld());
@@ -57,6 +64,7 @@ public class AStarTests
     }
 
     [Fact]
+    // Executes the ObstacleBetweenStartAndGoal_PathRoutesAroundIt operation and retains existing input and error handling.
     public void ObstacleBetweenStartAndGoal_PathRoutesAroundIt()
     {
         // Put a tall obstacle right in the middle. Drone is below its height, so it blocks.
@@ -78,6 +86,7 @@ public class AStarTests
     }
 
     [Fact]
+    // Executes the ObstacleBelowDroneAltitude_DoesNotBlock operation and retains existing input and error handling.
     public void ObstacleBelowDroneAltitude_DoesNotBlock()
     {
         // A 5m-tall obstacle and the drone at 20m. With a 3m buffer, threshold is 20m vs 8m —
@@ -92,6 +101,7 @@ public class AStarTests
     }
 
     [Fact]
+    // Executes the CompletelyBlockedWorld_ReturnsEmptyPath operation and retains existing input and error handling.
     public void CompletelyBlockedWorld_ReturnsEmptyPath()
     {
         // A huge obstacle covering the whole map blocks all routes.
@@ -107,6 +117,7 @@ public class AStarTests
     }
 
     [Fact]
+    // Executes the StartInsideObstacle_ReturnsEmptyPath operation and retains existing input and error handling.
     public void StartInsideObstacle_ReturnsEmptyPath()
     {
         // Start point is in a blocked cell — no valid path can exist.
@@ -120,6 +131,7 @@ public class AStarTests
     }
 
     [Fact]
+    // Executes the GoalOutsideGrid_ReturnsEmptyPath operation and retains existing input and error handling.
     public void GoalOutsideGrid_ReturnsEmptyPath()
     {
         Grid grid = MakeGrid(MakeEmptyWorld());
@@ -130,6 +142,7 @@ public class AStarTests
     }
 
     [Fact]
+    // Executes the PathIsContinuous_EachStepIsToANeighborCell operation and retains existing input and error handling.
     public void PathIsContinuous_EachStepIsToANeighborCell()
     {
         // Every consecutive pair of cells in the path must differ by at most one in

@@ -1,3 +1,6 @@
+// VENATOR SOURCE GUIDE: Builds an occupancy grid and checks obstacles against cruise altitude and safety margin.
+// Documentation-only update: existing executable statements and safety checks are unchanged.
+
 namespace DroneNavigation.PathPlanning;
 
 using DroneNavigation.Geometry;
@@ -19,6 +22,7 @@ using DroneNavigation.QuadTree;
 // Blocked-cell computation is EAGER: at construction time, we query the quadtree
 // once per cell and store the result. This makes A* fast at the cost of a one-time
 // O(rows * cols) setup. For our scale (thousands of cells) that's negligible.
+// Grid: Builds an occupancy grid and checks obstacles against cruise altitude and safety margin.
 public class Grid
 {
     public Rectangle Bounds { get; }
@@ -73,6 +77,7 @@ public class Grid
     }
 
     // Returns the world-space rectangle covered by a given cell.
+    // Returns the world-space rectangle represented by a grid cell.
     public Rectangle GetCellRect(int col, int row)
     {
         double x = Bounds.X + col * CellSize;
@@ -82,6 +87,7 @@ public class Grid
 
     // Returns the world-space center point of a cell — used by A* as the "position" of
     // a node and as the waypoint we ultimately send to the drone.
+    // Returns the world-space center of a grid cell.
     public Point GetCellCenter(int col, int row)
     {
         Rectangle r = GetCellRect(col, row);
@@ -90,6 +96,7 @@ public class Grid
 
     // Converts a world-space point into the grid cell that contains it.
     // Returns false if the point is outside the grid.
+    // Converts world coordinates to valid grid indices.
     public bool TryWorldToCell(Point world, out int col, out int row)
     {
         col = (int)Math.Floor((world.X - Bounds.X) / CellSize);
@@ -98,6 +105,7 @@ public class Grid
     }
 
     // True if the cell is within bounds AND not blocked by an obstacle.
+    // Returns whether the selected cell is traversable.
     public bool IsFree(int col, int row)
     {
         if (col < 0 || col >= Cols || row < 0 || row >= Rows) return false;
@@ -106,6 +114,7 @@ public class Grid
 
     // True if the cell is blocked. Returns false for out-of-bounds cells
     // (callers should check IsFree which handles both cases).
+    // Returns whether the selected cell is blocked.
     public bool IsBlocked(int col, int row)
     {
         if (col < 0 || col >= Cols || row < 0 || row >= Rows) return false;

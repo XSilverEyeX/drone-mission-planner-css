@@ -9,6 +9,7 @@
   <!-- Leaflet is used to display the interactive map -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
+  <!-- Interface styling for the sidebar, dashboard, map, operator states, and responsive layouts. -->
   <style>
 
     /* ---------- Main colors ---------- */
@@ -599,6 +600,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 
+  <!-- GUI controller: map planning, telemetry polling, and operator-initiated PX4 actions. -->
   <script>
 
     // ============================================================
@@ -629,6 +631,7 @@
     // ============================================================
 
     // Converts local x/y coordinates in meters into GPS coordinates
+    // Converts planner X/Y meters to latitude and longitude for map rendering.
     function worldToLatLon(x, y) {
 
       const effectiveX = x + boundaryOriginX;
@@ -650,6 +653,7 @@
 
 
     // Converts GPS coordinates back into local x/y coordinates
+    // Converts clicked GPS locations to the local planning grid.
     function latLonToWorld(lat, lon) {
 
       const y =
@@ -672,6 +676,7 @@
 
     // Converts local drone position into GPS coordinates
     // This does not use the movable planning-area offset
+    // Converts telemetry meter offsets to geographic coordinates.
     function localMetersToLatLon(xMeters, yMeters) {
 
       const lat =
@@ -753,6 +758,7 @@
     // ============================================================
 
     // Adds a timestamped message to the log window
+    // Appends a timestamped diagnostic message in the interface.
     function log(msg) {
 
       const el =
@@ -771,6 +777,7 @@
 
 
     // Changes which map tool is currently active
+    // Changes the active map interaction tool.
     function setTool(tool) {
 
       activeTool = tool;
@@ -822,6 +829,7 @@
 
     // Redraws the planning area, obstacles, start/goal,
     // and the planned flight path
+    // Rebuilds map overlays from the current mission-planning state.
     function redraw() {
       if (HOME_LAT === null || HOME_LON === null) return;
 
@@ -1217,6 +1225,7 @@
 
     // Gets available COM ports from the backend
     // The SiK telemetry radio should appear in this list
+    // Requests serial interfaces so the operator can select the SiK radio.
     async function loadTelemetryPorts() {
 
       const select =
@@ -1336,6 +1345,7 @@
 
     // Sends the mission information to the backend
     // The backend returns a list of calculated waypoints
+    // Requests obstacle-aware waypoints from the C# planning endpoint.
     async function planPath() {
 
       const altitude =
@@ -1436,8 +1446,10 @@
     // ============================================================
 
     // Sends the planned waypoints to the backend
+    // Keeps automatic route execution disabled in the current PX4 demo.
     async function flyMission() { log("Automatic mission execution disabled. Use individual demo controls."); }
 
+    // Sends an emergency landing request through the backend.
     async function abortMission() {
 
       log(
@@ -1481,6 +1493,7 @@
     // ============================================================
 
     // Removes all obstacles and clears the current path
+    // Resets the selected obstacles and planned route.
     function clearAll() {
 
       obstacles = [];
@@ -1522,6 +1535,7 @@
 
     // Gets the drone position from the backend
     // This function runs once every second
+    // Polls live telemetry while distinguishing unknown GPS from valid positions.
     async function pollDronePosition() {
       if (polling) return;
       polling = true;
@@ -1564,6 +1578,7 @@
     }
 
     // Calculates distance between two GPS coordinates
+    // Calculates geographic distance between successive GPS samples.
     function haversineMeters(a, b) {
 
       const toRad =
@@ -1608,6 +1623,7 @@
 
 
     // Draws the current drone position and traveled path
+    // Draws the latest known drone position and accumulated trail.
     function redrawDrone() {
 
 
@@ -1671,6 +1687,7 @@
     let indoorBaseline=null;
     const el = id => document.getElementById(id);
     const show = (v, digits=1) => typeof v === "number" ? v.toFixed(digits) : "Unknown";
+    // Enables or disables operator controls using returned safety/telemetry state.
     function updateDemoControls() {
       const fresh = Date.now() - lastTelemetryAt < 3500;
       const t = fresh ? telemetry : {blockers: ["Browser telemetry is stale"]};
@@ -1741,6 +1758,7 @@
       el("btn-fly").disabled = true;
       el("btn-plan").disabled = HOME_LAT === null;
     }
+    // Posts an explicit operator request to the local backend API.
     async function postDemo(url, body, emergency=false) {
       if (busy && !emergency) return;
       if (!emergency) busy = true;
@@ -1759,6 +1777,7 @@
         try { await fetch("/api/demo/enable", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({enabled:false,confirmed:false}), signal:AbortSignal.timeout(2000)}); } catch (_) {}
       } finally { if (!emergency) busy = false; await pollDronePosition(); updateDemoControls(); }
     }
+    // Validates the chosen operator action before requesting it.
     async function demoAction(action) {
       const altitude = Number(el("demo-altitude").value), heading = Number(el("demo-heading").value);
       if (["takeoff", "goto"].includes(action) && (!Number.isFinite(altitude) || altitude < 1 || altitude > 5)) { log("Select altitude from 1 to 5 m"); return; }
@@ -1802,6 +1821,7 @@
     el("btn-abort").onclick = () => demoAction("abort");
 
 
+    // Updates attitude, range and diagnostic values on the indoor dashboard.
     function updateIndoorStage(t,linked) {
       const attitudeValid=linked && typeof t.roll==="number" && typeof t.pitch==="number";
       el("attitude-surface").style.transform=attitudeValid ? "rotate("+(-t.roll)+"deg) translateY("+Math.max(-70,Math.min(70,t.pitch*2))+"px)" : "none";
@@ -1856,6 +1876,7 @@
       const url=URL.createObjectURL(new Blob([JSON.stringify({capturedAt:new Date().toISOString(),telemetry},null,2)],{type:"application/json"}));
       const a=document.createElement("a");a.href=url;a.download="venator-telemetry.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     };
+    // Formats state or safety reasons that currently prevent actions.
     function friendlyBlockers(t) {
       const reasons=[];
       if (!t.connected) reasons.push("connect the radio and wait for a heartbeat");
@@ -1865,6 +1886,7 @@
       if (t.landedState == null) reasons.push("ground/air state is unknown");
       return reasons.join("; ") + ". You can still use the props-off motor test when its requirements are met.";
     }
+    // Displays a structured success or error response to the operator.
     function showResult(reply) {
       let message=reply.message || "No result received.";
       if (reply.data && reply.data.armedObserved && reply.data.disarmedConfirmed) message="Motor test complete. PX4 armed, then disarmed. The vehicle is confirmed disarmed.";
@@ -1874,6 +1896,7 @@
       el("action-result").className="result " + (reply.status==="ok" ? "success" : "error");
       el("action-result").textContent=message;
     }
+    // Switches between available dashboard test modes.
     function selectTest(type) {
       const bench=type==="bench";
       el("bench-panel").hidden=!bench; el("flight-panel").hidden=bench;

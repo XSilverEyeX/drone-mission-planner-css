@@ -1,3 +1,6 @@
+// VENATOR SOURCE GUIDE: Unit tests for spatial indexing and obstacle queries.
+// Comments describe the existing implementation; operational logic remains unchanged.
+
 namespace DroneNavigation.Tests;
 
 using Xunit;
@@ -5,13 +8,16 @@ using DroneNavigation.Geometry;
 using DroneNavigation.Obstacles;
 using DroneNavigation.QuadTree;
 
+// QuadTreeTests groups related automated checks.
 public class QuadTreeTests
 {
     // Helper to create a standard tree for tests.
     // Bounds: 0-1000 in both axes. Default capacity (4) and max depth (8).
+    // Executes the MakeTree operation and retains existing input and error handling.
     private QuadTree MakeTree() => new QuadTree(new Rectangle(0, 0, 1000, 1000));
 
     [Fact]
+    // Executes the NewTree_HasNoObstacles operation and retains existing input and error handling.
     public void NewTree_HasNoObstacles()
     {
         QuadTree tree = MakeTree();
@@ -22,6 +28,7 @@ public class QuadTreeTests
     }
 
     [Fact]
+    // Executes the Insert_StoresObstacle_AndQueryReturnsIt operation and retains existing input and error handling.
     public void Insert_StoresObstacle_AndQueryReturnsIt()
     {
         QuadTree tree = MakeTree();
@@ -34,6 +41,7 @@ public class QuadTreeTests
     }
 
     [Fact]
+    // Executes the Query_ExcludesObstacles_OutsideRange operation and retains existing input and error handling.
     public void Query_ExcludesObstacles_OutsideRange()
     {
         QuadTree tree = MakeTree();
@@ -48,6 +56,7 @@ public class QuadTreeTests
     }
 
     [Fact]
+    // Executes the Query_ReturnsMultipleObstacles_InRange operation and retains existing input and error handling.
     public void Query_ReturnsMultipleObstacles_InRange()
     {
         QuadTree tree = MakeTree();
@@ -61,6 +70,7 @@ public class QuadTreeTests
     }
 
     [Fact]
+    // Executes the Insert_BeyondCapacity_TriggersSubdivision operation and retains existing input and error handling.
     public void Insert_BeyondCapacity_TriggersSubdivision()
     {
         // Capacity 2, max depth 3. Insert 5 obstacles — should subdivide.
@@ -81,6 +91,7 @@ public class QuadTreeTests
     }
 
     [Fact]
+    // Executes the Insert_OutsideBounds_ThrowsArgumentException operation and retains existing input and error handling.
     public void Insert_OutsideBounds_ThrowsArgumentException()
     {
         QuadTree tree = MakeTree();
@@ -90,6 +101,7 @@ public class QuadTreeTests
     }
 
     [Fact]
+    // Executes the Constructor_InvalidCapacity_ThrowsArgumentException operation and retains existing input and error handling.
     public void Constructor_InvalidCapacity_ThrowsArgumentException()
     {
         Assert.Throws<ArgumentException>(

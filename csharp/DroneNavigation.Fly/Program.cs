@@ -1,3 +1,6 @@
+// VENATOR SOURCE GUIDE: Console example of flight/planning integration; not the active PX4 control path.
+// Comments describe the existing implementation; operational logic remains unchanged.
+
 ﻿using DroneNavigation.Drone;
 using DroneNavigation.Geometry;
 using DroneNavigation.Obstacles;
