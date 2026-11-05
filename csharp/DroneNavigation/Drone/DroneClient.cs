@@ -1,3 +1,5 @@
+// The web server uses this client to exchange JSON messages with the Python bridge.
+
 namespace DroneNavigation.Drone;
 
 using System.Net.Sockets;
@@ -14,6 +16,7 @@ public class DroneClient : IDisposable
     public bool IsConnected { get; private set; }
     public DroneClient(string host = "127.0.0.1", int port = 5555) { _host = host; _port = port; }
     public void Connect() { IsConnected = true; }
+    // Every request opens its own local exchange with the bridge.
     public DroneResponse Send(object command)
     {
         using var socket = new TcpClient();

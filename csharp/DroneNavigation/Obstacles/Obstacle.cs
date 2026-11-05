@@ -1,3 +1,5 @@
+// Obstacle position, size, and height for clearance checks.
+
 namespace DroneNavigation.Obstacles;
 
 using DroneNavigation.Geometry;

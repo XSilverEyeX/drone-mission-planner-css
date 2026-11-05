@@ -1,3 +1,5 @@
+# This script checks both directions of the SiK radio link.
+
 """
 VENATOR SiK Radio-to-Radio Test
 

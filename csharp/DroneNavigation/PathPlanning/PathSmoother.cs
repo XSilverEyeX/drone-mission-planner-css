@@ -1,3 +1,5 @@
+// Reduces extra waypoints when there is a clear straight path.
+
 namespace DroneNavigation.PathPlanning;
 
 using DroneNavigation.Geometry;
@@ -19,6 +21,7 @@ using DroneNavigation.Geometry;
 // pair). For drone-scale paths (dozens to hundreds of cells), this is fine.
 public static class PathSmoother
 {
+    // Preserve the route endpoints while removing unnecessary intermediate points.
     public static List<Point> Smooth(Grid grid, List<Point> rawPath)
     {
         if (rawPath.Count <= 2) return new List<Point>(rawPath);

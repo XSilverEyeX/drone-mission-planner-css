@@ -1,3 +1,4 @@
+// Small console example for checking the path planner.
 ﻿using DroneNavigation.Geometry;
 using DroneNavigation.Obstacles;
 using DroneNavigation.PathPlanning;

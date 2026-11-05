@@ -1438,6 +1438,7 @@
     // Sends the planned waypoints to the backend
     async function flyMission() { log("Automatic mission execution disabled. Use individual demo controls."); }
 
+    // Request landing through the bridge; onboard failsafes still apply.
     async function abortMission() {
 
       log(
@@ -1671,6 +1672,7 @@
     let indoorBaseline=null;
     const el = id => document.getElementById(id);
     const show = (v, digits=1) => typeof v === "number" ? v.toFixed(digits) : "Unknown";
+    // Keep flight controls disabled until the bridge reports the required state.
     function updateDemoControls() {
       const fresh = Date.now() - lastTelemetryAt < 3500;
       const t = fresh ? telemetry : {blockers: ["Browser telemetry is stale"]};
@@ -1741,6 +1743,7 @@
       el("btn-fly").disabled = true;
       el("btn-plan").disabled = HOME_LAT === null;
     }
+    // Send operator requests to the API and display any rejection or timeout.
     async function postDemo(url, body, emergency=false) {
       if (busy && !emergency) return;
       if (!emergency) busy = true;
@@ -1759,6 +1762,7 @@
         try { await fetch("/api/demo/enable", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({enabled:false,confirmed:false}), signal:AbortSignal.timeout(2000)}); } catch (_) {}
       } finally { if (!emergency) busy = false; await pollDronePosition(); updateDemoControls(); }
     }
+    // Handle the selected PX4 command and its confirmation requirements.
     async function demoAction(action) {
       const altitude = Number(el("demo-altitude").value), heading = Number(el("demo-heading").value);
       if (["takeoff", "goto"].includes(action) && (!Number.isFinite(altitude) || altitude < 1 || altitude > 5)) { log("Select altitude from 1 to 5 m"); return; }
@@ -1802,6 +1806,7 @@
     el("btn-abort").onclick = () => demoAction("abort");
 
 
+    // Refresh attitude and downward range data for the indoor test view.
     function updateIndoorStage(t,linked) {
       const attitudeValid=linked && typeof t.roll==="number" && typeof t.pitch==="number";
       el("attitude-surface").style.transform=attitudeValid ? "rotate("+(-t.roll)+"deg) translateY("+Math.max(-70,Math.min(70,t.pitch*2))+"px)" : "none";
@@ -1856,6 +1861,7 @@
       const url=URL.createObjectURL(new Blob([JSON.stringify({capturedAt:new Date().toISOString(),telemetry},null,2)],{type:"application/json"}));
       const a=document.createElement("a");a.href=url;a.download="venator-telemetry.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     };
+    // Show why a command is currently unavailable.
     function friendlyBlockers(t) {
       const reasons=[];
       if (!t.connected) reasons.push("connect the radio and wait for a heartbeat");
@@ -1865,6 +1871,7 @@
       if (t.landedState == null) reasons.push("ground/air state is unknown");
       return reasons.join("; ") + ". You can still use the props-off motor test when its requirements are met.";
     }
+    // Display the backend response without treating an ACK as completed flight.
     function showResult(reply) {
       let message=reply.message || "No result received.";
       if (reply.data && reply.data.armedObserved && reply.data.disarmedConfirmed) message="Motor test complete. PX4 armed, then disarmed. The vehicle is confirmed disarmed.";
@@ -1874,6 +1881,7 @@
       el("action-result").className="result " + (reply.status==="ok" ? "success" : "error");
       el("action-result").textContent=message;
     }
+    // Switch the visible test panel without changing aircraft state.
     function selectTest(type) {
       const bench=type==="bench";
       el("bench-panel").hidden=!bench; el("flight-panel").hidden=bench;

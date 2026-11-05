@@ -1,3 +1,5 @@
+// Builds the occupancy grid using obstacle height and flight altitude.
+
 namespace DroneNavigation.PathPlanning;
 
 using DroneNavigation.Geometry;

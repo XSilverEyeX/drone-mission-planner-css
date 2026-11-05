@@ -1,9 +1,12 @@
+# This helper is only for controlled ground tests with the propellers removed.
+
 """Bounded props-off Offboard bench sequence. Never requests positive thrust."""
 import threading
 import time
 from drone_bridge import M, response
 
 
+# Offboard testing is limited to the bench sequence; it is not an indoor hover mode.
 def run(b, req):
     state = b.status()
     if req.get('propsOffConfirmed') is not True or not state['connected'] or state['armed'] or state['landedState'] != M.MAV_LANDED_STATE_ON_GROUND or not b.fresh('ATTITUDE'):
@@ -14,6 +17,7 @@ def run(b, req):
     stream_error = []
     stream_started = time.monotonic()
 
+    # Keep sending zero-thrust setpoints while the bench sequence is active.
     def stream():
         try:
             while not stopped.is_set() and time.monotonic()-stream_started < 25:
@@ -25,6 +29,7 @@ def run(b, req):
         except Exception as exc:
             stream_error.append(str(exc))
 
+    # Wait for a reported PX4 state instead of assuming the mode change succeeded.
     def observed(predicate, seconds=2):
         deadline = time.monotonic()+seconds
         with b.condition:

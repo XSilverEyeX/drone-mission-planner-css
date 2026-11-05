@@ -1,3 +1,5 @@
+// Stores obstacles for efficient spatial queries.
+
 namespace DroneNavigation.QuadTree;
 
 using DroneNavigation.Geometry;

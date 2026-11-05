@@ -1,3 +1,5 @@
+// Displays a grid and its path in the console for debugging.
+
 namespace DroneNavigation.PathPlanning;
 
 using System.Text;

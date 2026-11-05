@@ -1,3 +1,5 @@
+# Terminal-based telemetry checks for use before running the full GUI.
+
 """
 VENATOR Telemetry Demo
 venator_demo.py
@@ -17,6 +19,7 @@ def print_header():
     print("=" * 50)
 
 
+# Let the operator choose a detected serial device.
 def select_port(connection):
     """Find COM ports and allow the user to select one."""
 
@@ -56,6 +59,7 @@ def select_port(connection):
         print("Invalid selection. Try again.")
 
 
+# Keep the console menu read-only during telemetry checks.
 def telemetry_menu(connection):
     """Menu shown after a Pixhawk connection is established."""
 

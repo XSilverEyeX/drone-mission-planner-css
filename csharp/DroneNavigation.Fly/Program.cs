@@ -1,3 +1,4 @@
+// Flight-planning console example kept separately from the PX4 web controls.
 ﻿using DroneNavigation.Drone;
 using DroneNavigation.Geometry;
 using DroneNavigation.Obstacles;

@@ -1,3 +1,5 @@
+// Boundary checks used by the planning grid and quadtree.
+
 namespace DroneNavigation.Geometry;
 
 public readonly struct Rectangle
@@ -23,6 +25,7 @@ public readonly struct Rectangle
     public double CenterX => X + Width / 2;
     public double CenterY => Y + Height / 2;
 
+    // Check whether a point falls inside these boundaries.
     public bool Contains(Point point)
     {// For a point to be inside the rectangle, all four conditions must hold. This is how the quadtree will decide which child quadrant an obstacle belongs in — "does this child's rectangle contain this point?"
         return point.X >= X
@@ -31,6 +34,7 @@ public readonly struct Rectangle
             && point.Y <= MaxY;
     }
 
+    // Skip regions that do not overlap the search area.
     public bool Intersects(Rectangle other) // Two rectangles do not intersect if one is completely to the left, right, above, or below the other. If none of those conditions are true, then they must intersect. CRAZY, confusing. This is how the quadtree will check if an obstacle's rectangle overlaps with a quadrant's rectangle — "does this rectangle intersect with this other rectangle?"
     {
         return !(other.X > MaxX // If the other rectangle is completely to the right of this one, they don't intersect

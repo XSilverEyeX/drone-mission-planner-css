@@ -1,3 +1,5 @@
+// Shared request and response models for the map planner and PX4 controls.
+
 namespace DroneNavigation.Web.Models;
 
 // Lightweight data shapes used over the wire between the browser and the API.

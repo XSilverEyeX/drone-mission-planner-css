@@ -1,3 +1,5 @@
+# The desktop launcher uses the same HTML dashboard as the browser version.
+
 """
 VENATOR Ground Control Station
 Desktop GUI Launcher

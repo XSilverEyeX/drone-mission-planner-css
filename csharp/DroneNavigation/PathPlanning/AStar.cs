@@ -1,3 +1,5 @@
+// Searches the occupancy grid for a path around obstacles.
+
 namespace DroneNavigation.PathPlanning;
 
 using DroneNavigation.Geometry;
@@ -44,6 +46,7 @@ public static class AStar
         (-1, -1, DiagonalCost),   // SW
     };
 
+    // Check neighboring grid cells while avoiding blocked diagonals.
     public static List<Point> FindPath(Grid grid, Point startWorld, Point goalWorld)
     {
         // Convert world coordinates to grid cells, bailing out if either is off-grid

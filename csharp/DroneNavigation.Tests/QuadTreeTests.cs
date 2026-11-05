@@ -1,3 +1,4 @@
+// Checks obstacle insertion, subdivision, and spatial queries.
 namespace DroneNavigation.Tests;
 
 using Xunit;

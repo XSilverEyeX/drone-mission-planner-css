@@ -1,3 +1,4 @@
+// Checks path search around blocked cells and between selected points.
 namespace DroneNavigation.Tests;
 
 using Xunit;

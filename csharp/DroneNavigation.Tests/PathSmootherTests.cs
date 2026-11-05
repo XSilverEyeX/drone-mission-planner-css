@@ -1,3 +1,4 @@
+// Checks that route smoothing respects blocked cells.
 namespace DroneNavigation.Tests;
 
 using Xunit;

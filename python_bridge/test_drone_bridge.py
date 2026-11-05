@@ -1,3 +1,5 @@
+# These tests use fake MAVLink messages and do not connect to a flight controller.
+
 """Hardware-free safety and PX4 packet regression tests."""
 import json
 import math
@@ -33,6 +35,7 @@ class Wire:
             self.bridge.ingest(Message(kind='COMMAND_ACK', command=command, result=self.result, target_system=255, target_component=190))
 
 
+# Start each test with a controlled vehicle state instead of a live radio.
 def fixture(armed=False, airborne=False):
     b = db.DroneBridge()
     b.master = SimpleNamespace(mav=Wire(b), close=lambda: None)

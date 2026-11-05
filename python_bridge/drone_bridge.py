@@ -1,3 +1,5 @@
+# The web API talks to this bridge over local TCP; the bridge talks to PX4 over MAVLink.
+
 """VENATOR local JSON/TCP bridge. Starts disconnected; no automatic flight actions.
 
 One receiver owns MAVLink reads. Flight commands are acknowledged, never treated
@@ -53,6 +55,7 @@ class DroneBridge:
         self.stop = threading.Event()
         self.reset()
 
+    # Clear cached readings and confirmations whenever a new session starts.
     def reset(self):
         self.session_id = uuid.uuid4().hex
         self.messages = {}
@@ -71,10 +74,12 @@ class DroneBridge:
         self.reference = None
         self.reference_source = None
 
+    # Old telemetry should not be used to unlock a command.
     def fresh(self, kind):
         item = self.messages.get(kind)
         return item[1] if item and time.monotonic()-item[0] < FRESH_SECONDS else None
 
+    # Only accept messages from the PX4 system selected by the first valid heartbeat.
     def ingest(self, msg):
         kind = msg.get_type()
         if kind == 'BAD_DATA':
@@ -118,6 +123,7 @@ class DroneBridge:
                 self.logs.append(str(msg.text).rstrip('\x00'))
             self.condition.notify_all()
 
+    # This is the only thread that reads MAVLink packets from the radio.
     def receive(self):
         last_heartbeat = 0
         try:
@@ -157,6 +163,7 @@ class DroneBridge:
         with self.lock:
             self.reset()
 
+    # Open only the serial port chosen in the GUI.
     def connect(self, port, baud):
         if self.master:
             raise ValueError('Disconnect the current telemetry session first')
@@ -186,6 +193,7 @@ class DroneBridge:
             self.close()
             raise
 
+    # Collect the telemetry values that the dashboard can display.
     def status(self):
         with self.lock:
             hb, gps, pos = self.fresh('HEARTBEAT'), self.fresh('GPS_RAW_INT'), self.fresh('GLOBAL_POSITION_INT')
@@ -308,10 +316,12 @@ class DroneBridge:
                 altitude=pos.relative_alt/1000 if position_valid else None, altitudeAmsl=pos.alt/1000 if position_valid else None)
             return result
 
+    # Send a standard MAVLink command without forcing a state change.
     def send_long(self, command, params):
         with self.wire:
             self.master.mav.command_long_send(self.system, self.component, command, 0, *(params+[0]*(7-len(params))))
 
+    # A command ACK confirms receipt, not completion of a maneuver.
     def acknowledged(self, command, send, require_enabled=True):
         with self.lock:
             if require_enabled and not self.enabled:
@@ -338,6 +348,7 @@ class DroneBridge:
         self.last_command = dict(command=command, accepted=None, result='UNKNOWN')
         return response('error', 'No final ACK: outcome unknown. Controls locked; inspect telemetry before retrying.', self.last_command)
 
+    # Translate a map target into the position command expected by PX4.
     def reposition(self, lat, lon, amsl, yaw=float('nan')):
         def send():
             with self.wire:
@@ -345,6 +356,7 @@ class DroneBridge:
                     M.MAV_CMD_DO_REPOSITION, 0, 0, 1.0, 1, 0, yaw, round(lat*1e7), round(lon*1e7), amsl)
         return self.acknowledged(M.MAV_CMD_DO_REPOSITION, send)
 
+    # Check the requested operation and current safety state before sending commands.
     def handle(self, req):
         cmd = req.get('cmd')
         if cmd == 'get_ports':
@@ -542,6 +554,7 @@ bridge = DroneBridge()
 
 
 class Handler(socketserver.StreamRequestHandler):
+    # Check the requested operation and current safety state before sending commands.
     def handle(self):
         self.request.settimeout(30)
         while True:

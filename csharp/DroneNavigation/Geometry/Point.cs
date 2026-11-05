@@ -1,3 +1,5 @@
+// Local X/Y coordinates for the mission planning grid.
+
 namespace DroneNavigation.Geometry;
 
 public readonly struct Point // Points are value types thats why we use struct instead of class

@@ -1,3 +1,5 @@
+# Simple read-only MAVLink connection used by the terminal demo.
+
 """
 VENATOR Telemetry Demo
 mavlink_connection.py
@@ -44,6 +46,7 @@ class MAVLinkConnection:
     # CONNECTION
     # ---------------------------------------------------------
 
+    # Wait for a heartbeat to confirm that a flight controller is answering.
     def connect(self, port, baud=57600, heartbeat_timeout=10):
         """
         Open the selected COM port and wait for a MAVLink heartbeat.
@@ -128,6 +131,7 @@ class MAVLinkConnection:
     # POSITION
     # ---------------------------------------------------------
 
+    # GPS readings are returned only when a valid MAVLink message is received.
     def get_position(self, timeout=2):
         """Request the most recent GPS/global position message."""
 
@@ -153,6 +157,7 @@ class MAVLinkConnection:
     # DISCONNECT
     # ---------------------------------------------------------
 
+    # Release the serial port so QGroundControl or another program can use it.
     def disconnect(self):
         """Close the serial connection."""
 

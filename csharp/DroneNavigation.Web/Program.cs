@@ -1,3 +1,5 @@
+// The web API serves the map and forwards telemetry requests to the local Python bridge.
+
 using System.Text.Json;
 using DroneNavigation.Drone;
 using DroneNavigation.Geometry;
@@ -66,6 +68,7 @@ const double SafetyBufferMeters = 3.0;
 
 // Receives the obstacles, start, goal, and altitude from the GUI
 // and calculates a safe path using the A* path planner
+// Path planning works on the submitted obstacle map without sending flight commands.
 app.MapPost("/api/plan", (PlanRequest req) =>
 {
 
@@ -218,6 +221,7 @@ app.MapGet("/api/status", (DroneClient client) =>
 app.MapPost("/api/telemetry/connect", (ConnectionRequest req, DroneClient client) => Relay(client, new { cmd = "connect", port = req.Port, baud = req.Baud }));
 app.MapPost("/api/telemetry/disconnect", (DroneClient client) => Relay(client, new { cmd = "disconnect" }));
 app.MapPost("/api/demo/enable", (DemoEnableRequest req, DroneClient client) => Relay(client, new { cmd = "enable_demo", enabled = req.Enabled, confirmed = req.Confirmed }));
+// The bridge decides whether a requested PX4 action is allowed.
 app.MapPost("/api/demo/{action}", (string action, DemoRequest req, DroneClient client) =>
 {
     if (!new[] { "arm", "disarm", "takeoff", "hold", "goto", "yaw", "land", "abort", "bench_arm", "offboard_bench", "set_mode" }.Contains(action))

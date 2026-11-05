@@ -1,3 +1,5 @@
+// Splits the search area into smaller quadrants as obstacles are inserted.
+
 namespace DroneNavigation.QuadTree;
 
 using DroneNavigation.Geometry;

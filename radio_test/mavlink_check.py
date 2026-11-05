@@ -1,3 +1,5 @@
+# Quick serial test: confirm a heartbeat, then print the telemetry received.
+
 
 from pymavlink import mavutil
 import time
@@ -15,6 +17,7 @@ drone = mavutil.mavserial(
 
 print("Waiting for Pixhawk heartbeat...")
 
+# A heartbeat is required before the script displays aircraft information.
 heartbeat = drone.wait_heartbeat(timeout=20)
 
 if heartbeat is None:
@@ -28,6 +31,7 @@ print("Autopilot:", heartbeat.autopilot)
 
 print("\nListening for telemetry for 15 seconds...")
 
+# Keep this a short diagnostic run, not a continuous logger.
 end_time = time.time() + 15
 
 while time.time() < end_time:
@@ -52,5 +56,6 @@ while time.time() < end_time:
     elif msg.get_type() == "GLOBAL_POSITION_INT":
         print(f"GPS: {msg.lat / 1e7:.6f}, {msg.lon / 1e7:.6f}")
 
+# Give the COM port back when the check is done.
 drone.close()
 print("\nTest complete.")
